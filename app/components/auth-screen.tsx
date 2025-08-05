@@ -1,223 +1,356 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import type React from "react"
+
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, EyeOff, Flag, AlertTriangle } from "lucide-react"
+import { Eye, EyeOff, Phone, Mail, Lock, Gift, CheckCircle, AlertCircle } from "lucide-react"
+import { authFunctions } from "@/app/lib/database"
+import { useSound } from "@/app/hooks/use-sound"
 
 interface AuthScreenProps {
-  onLogin: (userData: any) => void
-  onSignup: (userData: any) => void
+  onAuthSuccess: (user: any, dailyBonus?: number) => void
 }
 
-export default function AuthScreen({ onLogin, onSignup }: AuthScreenProps) {
-  const [isLogin, setIsLogin] = useState(true)
+export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
+  const [activeTab, setActiveTab] = useState("login")
   const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [formData, setFormData] = useState({
-    fullName: "",
-    phone: "+880",
-    walletPin: "",
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+
+  // Form states
+  const [loginData, setLoginData] = useState({
+    phone: "",
+    password: "",
+  })
+
+  const [signupData, setSignupData] = useState({
+    name: "",
+    phone: "",
+    email: "",
     password: "",
     confirmPassword: "",
     referralCode: "",
-    rememberMe: false,
   })
 
-  const handleInputChange = (field: string, value: string | boolean) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+  const { playSound } = useSound()
+
+  // Clear messages when switching tabs
+  useEffect(() => {
+    setError("")
+    setSuccess("")
+  }, [activeTab])
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError("")
+    setSuccess("")
+
+    try {
+      playSound("click")
+
+      const result = await authFunctions.signIn(loginData.phone, loginData.password)
+
+      if (result.success && result.user) {
+        playSound("success")
+        setSuccess("সফলভাবে লগইন হয়েছে!")
+
+        if (result.dailyBonus && result.dailyBonus > 0) {
+          setSuccess(`সফলভাবে লগইন হয়েছে! ৳${result.dailyBonus} দৈনিক বোনাস পেয়েছেন!`)
+        }
+
+        setTimeout(() => {
+          onAuthSuccess(result.user, result.dailyBonus)
+        }, 1500)
+      } else {
+        playSound("error")
+        setError(result.error || "লগইনে সমস্যা হয়েছে")
+      }
+    } catch (error: any) {
+      playSound("error")
+      setError(error.message || "লগইনে সমস্যা হয়েছে")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const handleSubmit = () => {
-    const userData = {
-      name: isLogin ? "Rakib" : formData.fullName.split(" ")[0] || "User",
-      phone: formData.phone,
-      balance: 2500,
-      bonusBalance: 150,
-      lockedBalance: 800,
-      hasInvested: true,
-      dailyEarning: 85,
-      loginStreak: 3,
-    }
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError("")
+    setSuccess("")
 
-    if (isLogin) {
-      onLogin(userData)
-    } else {
-      onSignup(userData)
+    try {
+      playSound("click")
+
+      // Validation
+      if (!signupData.name || !signupData.phone || !signupData.email || !signupData.password) {
+        throw new Error("সব তথ্য পূরণ করুন")
+      }
+
+      if (signupData.password !== signupData.confirmPassword) {
+        throw new Error("পাসওয়ার্ড মিলছে না")
+      }
+
+      if (signupData.password.length < 6) {
+        throw new Error("পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে")
+      }
+
+      const result = await authFunctions.signUp({
+        name: signupData.name,
+        phone: signupData.phone,
+        email: signupData.email,
+        password: signupData.password,
+        referralCode: signupData.referralCode || undefined,
+      })
+
+      if (result.success && result.user) {
+        playSound("success")
+        setSuccess("অ্যাকাউন্ট সফলভাবে তৈরি হয়েছে! স্বাগতম বোনাস পেয়েছেন!")
+
+        setTimeout(() => {
+          onAuthSuccess(result.user)
+        }, 2000)
+      } else {
+        playSound("error")
+        setError(result.error || "অ্যাকাউন্ট তৈরিতে সমস্যা হয়েছে")
+      }
+    } catch (error: any) {
+      playSound("error")
+      setError(error.message || "অ্যাকাউন্ট তৈরিতে সমস্যা হয়েছে")
+    } finally {
+      setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-md mx-auto pt-8">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-white rounded-2xl shadow-lg flex items-center justify-center mx-auto mb-4 p-2">
-            <img src="/amac-logo.svg" alt="AMAC Logo" className="w-full h-full object-contain" />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md shadow-xl">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+            <Gift className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">AMAC</h1>
-          <p className="text-gray-600">বিনিয়োগ প্ল্যাটফর্ম</p>
-        </div>
+          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            AMAC Investment
+          </CardTitle>
+          <CardDescription>আপনার বিনিয়োগ যাত্রা শুরু করুন</CardDescription>
+        </CardHeader>
 
-        {!isLogin && (
-          <Alert className="mb-6 border-green-200 bg-green-50">
-            <Flag className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-800">🇧🇩 আপনি বাংলাদেশ থেকে আমাদের সাথে আছেন</AlertDescription>
-          </Alert>
-        )}
+        <CardContent>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login">লগইন</TabsTrigger>
+              <TabsTrigger value="signup">সাইন আপ</TabsTrigger>
+            </TabsList>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-center">{isLogin ? "লগইন করুন" : "নতুন অ্যাকাউন্ট তৈরি করুন"}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="fullName">পূর্ণ নাম *</Label>
-                <Input
-                  id="fullName"
-                  placeholder="আপনার পূর্ণ নাম লিখুন"
-                  value={formData.fullName}
-                  onChange={(e) => handleInputChange("fullName", e.target.value)}
-                />
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="phone">ফোন নম্বর {!isLogin && "*"}</Label>
-              <div className="relative">
-                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
-                  <span className="text-lg">🇧🇩</span>
-                </div>
-                <Input
-                  id="phone"
-                  placeholder="+880 1712345678"
-                  value={formData.phone}
-                  onChange={(e) => handleInputChange("phone", e.target.value)}
-                  className="pl-16"
-                />
-              </div>
-            </div>
-
-            {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="walletPin">৪ সংখ্যার ওয়ালেট পিন *</Label>
-                <Input
-                  id="walletPin"
-                  type="password"
-                  placeholder="••••"
-                  maxLength={4}
-                  value={formData.walletPin}
-                  onChange={(e) => handleInputChange("walletPin", e.target.value)}
-                />
-                <p className="text-xs text-gray-500">দ্রুত লেনদেনের জন্য ব্যবহৃত হবে</p>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="password">{isLogin ? "পাসওয়ার্ড" : "৬ সংখ্যার অ্যাকাউন্ট পাসওয়ার্ড *"}</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••"
-                  maxLength={6}
-                  value={formData.password}
-                  onChange={(e) => handleInputChange("password", e.target.value)}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
-            {!isLogin && (
-              <>
+            {/* Login Tab */}
+            <TabsContent value="login" className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">পাসওয়ার্ড নিশ্চিত করুন *</Label>
+                  <Label htmlFor="login-phone">ফোন নম্বর</Label>
                   <div className="relative">
+                    <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
-                      id="confirmPassword"
-                      type={showConfirmPassword ? "text" : "password"}
-                      placeholder="••••••"
-                      maxLength={6}
-                      value={formData.confirmPassword}
-                      onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                      id="login-phone"
+                      type="tel"
+                      placeholder="01XXXXXXXXX"
+                      value={loginData.phone}
+                      onChange={(e) => setLoginData({ ...loginData, phone: e.target.value })}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="login-password">পাসওয়ার্ড</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="login-password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="আপনার পাসওয়ার্ড"
+                      value={loginData.password}
+                      onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                      className="pl-10 pr-10"
+                      required
                     />
                     <button
                       type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-3 h-4 w-4 text-gray-400 hover:text-gray-600"
                     >
-                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showPassword ? <EyeOff /> : <Eye />}
+                    </button>
+                  </div>
+                </div>
+
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "লগইন হচ্ছে..." : "লগইন করুন"}
+                </Button>
+              </form>
+            </TabsContent>
+
+            {/* Signup Tab */}
+            <TabsContent value="signup" className="space-y-4">
+              <form onSubmit={handleSignup} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="signup-name">পূর্ণ নাম</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="signup-name"
+                      type="text"
+                      placeholder="আপনার পূর্ণ নাম"
+                      value={signupData.name}
+                      onChange={(e) => setSignupData({ ...signupData, name: e.target.value })}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="signup-phone">ফোন নম্বর</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="signup-phone"
+                      type="tel"
+                      placeholder="01XXXXXXXXX"
+                      value={signupData.phone}
+                      onChange={(e) => setSignupData({ ...signupData, phone: e.target.value })}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="signup-email">ইমেইল</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="signup-email"
+                      type="email"
+                      placeholder="your@email.com"
+                      value={signupData.email}
+                      onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="signup-password">পাসওয়ার্ড</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="signup-password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="কমপক্ষে ৬ অক্ষর"
+                      value={signupData.password}
+                      onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
+                      className="pl-10 pr-10"
+                      required
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-3 h-4 w-4 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPassword ? <EyeOff /> : <Eye />}
                     </button>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="referralCode">রেফারেল কোড (ঐচ্ছিক)</Label>
-                  <Input
-                    id="referralCode"
-                    placeholder="রেফারেল কোড থাকলে লিখুন"
-                    value={formData.referralCode}
-                    onChange={(e) => handleInputChange("referralCode", e.target.value)}
-                  />
+                  <Label htmlFor="signup-confirm-password">পাসওয়ার্ড নিশ্চিত করুন</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="signup-confirm-password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="পাসওয়ার্ড পুনরায় লিখুন"
+                      value={signupData.confirmPassword}
+                      onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
                 </div>
 
-                <Alert className="border-yellow-200 bg-yellow-50">
-                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                  <AlertDescription className="text-yellow-800">
-                    পাসওয়ার্ড মনে রাখবেন - এটি আপনার অ্যাকাউন্ট সুরক্ষার জন্য গুরুত্বপূর্ণ
-                  </AlertDescription>
-                </Alert>
-              </>
-            )}
-
-            {isLogin && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="remember"
-                    checked={formData.rememberMe}
-                    onCheckedChange={(checked) => handleInputChange("rememberMe", checked as boolean)}
-                  />
-                  <Label htmlFor="remember" className="text-sm">
-                    আমাকে মনে রাখুন
-                  </Label>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-referral">রেফারেল কোড (ঐচ্ছিক)</Label>
+                  <div className="relative">
+                    <Gift className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="signup-referral"
+                      type="text"
+                      placeholder="রেফারেল কোড থাকলে লিখুন"
+                      value={signupData.referralCode}
+                      onChange={(e) => setSignupData({ ...signupData, referralCode: e.target.value.toUpperCase() })}
+                      className="pl-10"
+                    />
+                  </div>
                 </div>
-                <button className="text-sm text-blue-600 hover:underline">পাসওয়ার্ড ভুলে গেছেন?</button>
+
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "অ্যাকাউন্ট তৈরি হচ্ছে..." : "অ্যাকাউন্ট তৈরি করুন"}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
+
+          {/* Error Alert */}
+          {error && (
+            <Alert className="mt-4 border-red-200 bg-red-50">
+              <AlertCircle className="h-4 w-4 text-red-600" />
+              <AlertDescription className="text-red-800">{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Success Alert */}
+          {success && (
+            <Alert className="mt-4 border-green-200 bg-green-50">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-800">{success}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Features */}
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <div className="text-center text-sm text-gray-600 mb-4">কেন AMAC বেছে নিবেন?</div>
+            <div className="grid grid-cols-2 gap-4 text-xs">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span>দৈনিক রিটার্ন</span>
               </div>
-            )}
-
-            <Button className="w-full bg-blue-600 hover:bg-blue-700" size="lg" onClick={handleSubmit}>
-              {isLogin ? "লগইন করুন" : "অ্যাকাউন্ট তৈরি করুন"}
-            </Button>
-
-            <div className="text-center">
-              <p className="text-sm text-gray-600">
-                {isLogin ? "নতুন ব্যবহারকারী? " : "ইতিমধ্যে অ্যাকাউন্ট আছে? "}
-                <button onClick={() => setIsLogin(!isLogin)} className="text-blue-600 font-medium hover:underline">
-                  {isLogin ? "অ্যাকাউন্ট তৈরি করুন" : "লগইন করুন"}
-                </button>
-              </p>
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span>তাৎক্ষণিক উইথড্র</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                <span>রেফারেল বোনাস</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                <span>২৪/৭ সাপোর্ট</span>
+              </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {isLogin && (
-          <div className="mt-6 text-center">
-            <p className="text-xs text-gray-500">এই ডিভাইস থেকে পরবর্তী লগইন স্বয়ংক্রিয় হবে</p>
           </div>
-        )}
-      </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

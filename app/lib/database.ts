@@ -2,13 +2,13 @@
 
 import { createClient } from "@supabase/supabase-js"
 
-// Use fallback values for development
+// Use environment variables or fallback values
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://your-project.supabase.co"
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "your-anon-key"
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "your-anon-key"
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+const supabase = createClient(supabaseUrl, supabaseKey)
 
-// Database Types
+// Database Types matching actual Supabase schema
 export interface User {
   id: string
   phone: string
@@ -27,7 +27,6 @@ export interface User {
   last_login: string
   kyc_status: "pending" | "approved" | "rejected"
   status: "active" | "suspended" | "banned"
-  role: "user" | "admin"
   avatar?: string
   created_at: string
   updated_at: string
@@ -331,25 +330,72 @@ const mockGifts: Gift[] = [
   },
 ]
 
+// Generate unique referral code
+const generateReferralCode = () => {
+  return `AJ${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+}
+
+// Hash password (simple implementation - in production use bcrypt)
+const hashPassword = (password: string) => {
+  return btoa(password) // Simple base64 encoding - use proper hashing in production
+}
+
+// Verify password
+const verifyPassword = (password: string, hashedPassword: string) => {
+  return btoa(password) === hashedPassword
+}
+
 // Authentication Functions
 export const authFunctions = {
   async signUp(userData: {
     phone: string
     name: string
+    email: string
     password: string
-    walletPin: string
     referralCode?: string
   }) {
     try {
-      // Generate unique referral code
-      const referralCode = `AJ${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+      console.log("Starting signup process for:", userData.phone)
+
+      // Validate input
+      if (!userData.phone || !userData.name || !userData.email || !userData.password) {
+        throw new Error("সব তথ্য পূরণ করুন")
+      }
+
+      // Validate phone number format
+      if (!/^(\+88)?01[3-9]\d{8}$/.test(userData.phone)) {
+        throw new Error("সঠিক বাংলাদেশী ফোন নম্বর দিন")
+      }
+
+      // Validate email format
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userData.email)) {
+        throw new Error("সঠিক ইমেইল ঠিকানা দিন")
+      }
 
       // Check if phone already exists
-      const { data: existingUser } = await supabase.from("users").select("id").eq("phone", userData.phone).single()
+      const { data: existingUser, error: checkError } = await supabase
+        .from("users")
+        .select("id")
+        .eq("phone", userData.phone)
+        .single()
 
       if (existingUser) {
         throw new Error("এই ফোন নম্বর দিয়ে ইতিমধ্যে অ্যাকাউন্ট রয়েছে")
       }
+
+      // Check if email already exists
+      const { data: existingEmail, error: emailCheckError } = await supabase
+        .from("users")
+        .select("id")
+        .eq("email", userData.email)
+        .single()
+
+      if (existingEmail) {
+        throw new Error("এই ইমেইল দিয়ে ইতিমধ্যে অ্যাকাউন্ট রয়েছে")
+      }
+
+      // Generate unique referral code
+      const referralCode = generateReferralCode()
 
       // Find referrer if referral code provided
       let referrerId = null
@@ -365,15 +411,19 @@ export const authFunctions = {
         }
       }
 
-      // Create user
+      // Hash password
+      const hashedPassword = hashPassword(userData.password)
+
+      // Create user with only existing columns
       const { data: newUser, error } = await supabase
         .from("users")
         .insert([
           {
             phone: userData.phone,
             name: userData.name,
-            password: userData.password,
-            wallet_pin: userData.walletPin,
+            email: userData.email,
+            password: hashedPassword,
+            wallet_pin: "0000", // Default wallet pin
             referral_code: referralCode,
             referred_by: referrerId,
             balance: 0,
@@ -385,64 +435,109 @@ export const authFunctions = {
             last_login: new Date().toISOString(),
             kyc_status: "pending",
             status: "active",
-            role: "user",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
           },
         ])
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error("Database error:", error)
+        throw new Error("অ্যাকাউন্ট তৈরিতে সমস্যা হয়েছে")
+      }
+
+      console.log("User created successfully:", newUser.id)
 
       // Give referral bonus to referrer
       if (referrerId) {
-        await supabase.rpc("add_referral_bonus", {
-          referrer_id: referrerId,
-          referred_id: newUser.id,
-          bonus_amount: 200,
-        })
+        try {
+          const { data: referrer } = await supabase.from("users").select("bonus_balance").eq("id", referrerId).single()
 
-        // Create referral record
-        await supabase.from("referrals").insert([
-          {
-            referrer_id: referrerId,
-            referred_id: newUser.id,
-            level: 1,
-            commission_rate: 10,
-            total_earned: 0,
-            status: "active",
-          },
-        ])
+          if (referrer) {
+            await supabase
+              .from("users")
+              .update({
+                bonus_balance: referrer.bonus_balance + 200,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", referrerId)
+
+            // Create referral record
+            await supabase.from("referrals").insert([
+              {
+                referrer_id: referrerId,
+                referred_id: newUser.id,
+                level: 1,
+                commission_rate: 10,
+                total_earned: 0,
+                status: "active",
+                created_at: new Date().toISOString(),
+              },
+            ])
+
+            // Create referral bonus transaction
+            await supabase.from("transactions").insert([
+              {
+                user_id: referrerId,
+                type: "referral",
+                amount: 200,
+                status: "completed",
+                description: "রেফারেল বোনাস",
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              },
+            ])
+          }
+        } catch (referralError) {
+          console.warn("Referral bonus error:", referralError)
+        }
       }
 
       // Create welcome notification
-      await supabase.from("notifications").insert([
-        {
-          user_id: newUser.id,
-          title: "Welcome to AMAC",
-          title_bn: "AMAC এ স্বাগতম",
-          message: "Your account has been created successfully!",
-          message_bn: "আপনার অ্যাকাউন্ট সফলভাবে তৈরি হয়েছে!",
-          type: "success",
-          read: false,
-        },
-      ])
+      try {
+        await supabase.from("notifications").insert([
+          {
+            user_id: newUser.id,
+            title: "Welcome to AMAC",
+            title_bn: "AMAC এ স্বাগতম",
+            message: "Your account has been created successfully!",
+            message_bn: "আপনার অ্যাকাউন্ট সফলভাবে তৈরি হয়েছে!",
+            type: "success",
+            read: false,
+            created_at: new Date().toISOString(),
+          },
+        ])
+      } catch (notificationError) {
+        console.warn("Notification creation error:", notificationError)
+      }
 
       return { user: newUser, success: true }
     } catch (error: any) {
-      return { error: error.message, success: false }
+      console.error("Signup error:", error)
+      return { error: error.message || "অ্যাকাউন্ট তৈরিতে সমস্যা হয়েছে", success: false }
     }
   },
 
   async signIn(phone: string, password: string) {
     try {
-      const { data: user, error } = await supabase
-        .from("users")
-        .select("*")
-        .eq("phone", phone)
-        .eq("password", password)
-        .single()
+      console.log("Starting login process for:", phone)
+
+      // Validate input
+      if (!phone || !password) {
+        throw new Error("ফোন নম্বর এবং পাসওয়ার্ড দিন")
+      }
+
+      // Get user from database
+      const { data: user, error } = await supabase.from("users").select("*").eq("phone", phone).single()
 
       if (error || !user) {
+        console.error("User not found:", error)
+        throw new Error("ভুল ফোন নম্বর বা পাসওয়ার্ড")
+      }
+
+      // Verify password
+      if (!verifyPassword(password, user.password)) {
         throw new Error("ভুল ফোন নম্বর বা পাসওয়ার্ড")
       }
 
@@ -450,12 +545,19 @@ export const authFunctions = {
         throw new Error("আপনার অ্যাকাউন্ট নিষিদ্ধ করা হয়েছে")
       }
 
+      console.log("User authenticated successfully:", user.id)
+
       // Update last login and login streak
       const today = new Date().toDateString()
       const lastLogin = new Date(user.last_login).toDateString()
-      const isConsecutiveDay = new Date(today).getTime() - new Date(lastLogin).getTime() === 86400000
+      const yesterday = new Date(Date.now() - 86400000).toDateString()
 
-      const newStreak = lastLogin === today ? user.login_streak : isConsecutiveDay ? user.login_streak + 1 : 1
+      let newStreak = 1
+      if (lastLogin === today) {
+        newStreak = user.login_streak // Same day, keep streak
+      } else if (lastLogin === yesterday) {
+        newStreak = user.login_streak + 1 // Consecutive day
+      }
 
       // Daily login bonus
       let dailyBonus = 0
@@ -475,37 +577,54 @@ export const authFunctions = {
         .select()
         .single()
 
-      if (updateError) throw updateError
+      if (updateError) {
+        console.warn("Update error:", updateError)
+        // Continue with original user data if update fails
+      }
 
       // Create daily bonus transaction
       if (dailyBonus > 0) {
-        await supabase.from("transactions").insert([
-          {
-            user_id: user.id,
-            type: "bonus",
-            amount: dailyBonus,
-            status: "completed",
-            description: `দৈনিক লগইন বোনাস - ${newStreak} দিনের স্ট্রিক`,
-          },
-        ])
+        try {
+          await supabase.from("transactions").insert([
+            {
+              user_id: user.id,
+              type: "bonus",
+              amount: dailyBonus,
+              status: "completed",
+              description: `দৈনিক লগইন বোনাস - ${newStreak} দিনের স্ট্রিক`,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+          ])
 
-        // Create notification
-        await supabase.from("notifications").insert([
-          {
-            user_id: user.id,
-            title: "Daily Login Bonus",
-            title_bn: "দৈনিক লগইন বোনাস",
-            message: `You received ৳${dailyBonus} login bonus!`,
-            message_bn: `আপনি ৳${dailyBonus} লগইন বোনাস পেয়েছেন!`,
-            type: "success",
-            read: false,
-          },
-        ])
+          // Create notification
+          await supabase.from("notifications").insert([
+            {
+              user_id: user.id,
+              title: "Daily Login Bonus",
+              title_bn: "দৈনিক লগইন বোনাস",
+              message: `You received ৳${dailyBonus} login bonus!`,
+              message_bn: `আপনি ৳${dailyBonus} লগইন বোনাস পেয়েছেন!`,
+              type: "success",
+              read: false,
+              created_at: new Date().toISOString(),
+            },
+          ])
+        } catch (bonusError) {
+          console.warn("Bonus creation error:", bonusError)
+        }
       }
 
-      return { user: updatedUser, dailyBonus, success: true }
+      const finalUser = updatedUser || {
+        ...user,
+        bonus_balance: user.bonus_balance + dailyBonus,
+        login_streak: newStreak,
+      }
+
+      return { user: finalUser, dailyBonus, success: true }
     } catch (error: any) {
-      return { error: error.message, success: false }
+      console.error("Login error:", error)
+      return { error: error.message || "লগইনে সমস্যা হয়েছে", success: false }
     }
   },
 
@@ -834,6 +953,8 @@ export const actionFunctions = {
             total_days: package_.total_days,
             status: "active",
             next_payment: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
           },
         ])
         .select()
@@ -859,6 +980,8 @@ export const actionFunctions = {
           amount: amount,
           status: "completed",
           description: `${package_.name_bn} প্যাকেজে বিনিয়োগ`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         },
       ])
 
@@ -893,6 +1016,8 @@ export const actionFunctions = {
             account_number: accountNumber,
             description: `${method} এর মাধ্যমে উইথড্র`,
             reference: `WD${Date.now()}`,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
           },
         ])
         .select()
@@ -948,6 +1073,7 @@ export const actionFunctions = {
             prize_amount: prizeAmount,
             prize_type: prizeType,
             status: "completed",
+            created_at: new Date().toISOString(),
           },
         ])
         .select()
@@ -981,6 +1107,8 @@ export const actionFunctions = {
           amount: prizeAmount,
           status: "completed",
           description: `${type} স্পিন থেকে ${prizeType === "cash" ? "ক্যাশ" : "বোনাস"} পুরস্কার`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         },
       ])
 
@@ -1018,6 +1146,7 @@ export const actionFunctions = {
             status: "completed",
             progress: 100,
             completed_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
           },
         ])
         .select()
@@ -1044,6 +1173,8 @@ export const actionFunctions = {
           amount: task.reward,
           status: "completed",
           description: `${task.title_bn} টাস্ক সম্পন্ন করার জন্য পুরস্কার`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         },
       ])
 
@@ -1106,6 +1237,8 @@ export const actionFunctions = {
           amount: gift.reward,
           status: "completed",
           description: `${gift.title_bn} গিফট ক্লেইম`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         },
       ])
 
@@ -1132,3 +1265,5 @@ export const actionFunctions = {
     }
   },
 }
+
+export default supabase

@@ -1,78 +1,103 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { Gift, Sparkles } from "lucide-react"
 
-export default function SplashScreen() {
-  const [animate, setAnimate] = useState(false)
+interface SplashScreenProps {
+  onComplete: () => void
+}
+
+export default function SplashScreen({ onComplete }: SplashScreenProps) {
+  const [progress, setProgress] = useState(0)
+  const [showLogo, setShowLogo] = useState(false)
 
   useEffect(() => {
-    // Start animation after component mounts
-    const timer = setTimeout(() => {
-      setAnimate(true)
+    // Show logo animation
+    const logoTimer = setTimeout(() => {
+      setShowLogo(true)
     }, 500)
 
-    return () => clearTimeout(timer)
-  }, [])
+    // Progress animation
+    const progressTimer = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(progressTimer)
+          setTimeout(onComplete, 500)
+          return 100
+        }
+        return prev + 2
+      })
+    }, 50)
+
+    return () => {
+      clearTimeout(logoTimer)
+      clearInterval(progressTimer)
+    }
+  }, [onComplete])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 flex items-center justify-center relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800 flex flex-col items-center justify-center relative overflow-hidden">
       {/* Background Animation */}
       <div className="absolute inset-0">
-        <div className="absolute top-20 left-10 w-20 h-20 bg-white/10 rounded-full animate-pulse"></div>
-        <div className="absolute top-40 right-20 w-16 h-16 bg-white/5 rounded-full animate-bounce delay-300"></div>
-        <div className="absolute bottom-32 left-20 w-12 h-12 bg-white/10 rounded-full animate-ping delay-500"></div>
-        <div className="absolute bottom-20 right-10 w-24 h-24 bg-white/5 rounded-full animate-pulse delay-700"></div>
+        <div className="absolute top-20 left-20 w-32 h-32 bg-white/10 rounded-full animate-pulse"></div>
+        <div className="absolute top-40 right-32 w-24 h-24 bg-white/5 rounded-full animate-bounce"></div>
+        <div className="absolute bottom-32 left-32 w-40 h-40 bg-white/5 rounded-full animate-pulse"></div>
+        <div className="absolute bottom-20 right-20 w-28 h-28 bg-white/10 rounded-full animate-bounce"></div>
       </div>
 
       {/* Main Content */}
-      <div className="text-center z-10">
-        {/* Logo Container */}
-        <div
-          className={`mb-8 transition-all duration-1000 ${
-            animate ? "scale-100 opacity-100 rotate-0" : "scale-50 opacity-0 rotate-12"
-          }`}
-        >
-          <div className="w-32 h-32 mx-auto mb-6 bg-white rounded-2xl shadow-2xl flex items-center justify-center p-4">
-            <img src="/amac-logo.svg" alt="AMAC Logo" className="w-full h-full object-contain" />
+      <div className="relative z-10 flex flex-col items-center space-y-8">
+        {/* Logo */}
+        <div className={`transition-all duration-1000 ${showLogo ? "scale-100 opacity-100" : "scale-50 opacity-0"}`}>
+          <div className="relative">
+            <div className="w-24 h-24 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-2xl">
+              <Gift className="w-12 h-12 text-white" />
+            </div>
+            <div className="absolute -top-2 -right-2">
+              <Sparkles className="w-8 h-8 text-yellow-300 animate-spin" />
+            </div>
           </div>
         </div>
 
-        {/* Company Name */}
+        {/* App Name */}
         <div
-          className={`transition-all duration-1000 delay-300 ${
-            animate ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
+          className={`text-center transition-all duration-1000 delay-500 ${
+            showLogo ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
           }`}
         >
-          <h1 className="text-4xl font-bold text-white mb-2">AMAC</h1>
-          <p className="text-xl text-blue-100 mb-8">Investment Platform</p>
+          <h1 className="text-4xl font-bold text-white mb-2">AMAC Investment</h1>
+          <p className="text-xl text-blue-100">আপনার স্বপ্নের বিনিয়োগ</p>
         </div>
 
-        {/* Tagline in Bangla */}
+        {/* Loading Progress */}
         <div
-          className={`transition-all duration-1000 delay-500 ${
-            animate ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
+          className={`w-64 transition-all duration-1000 delay-1000 ${
+            showLogo ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
           }`}
         >
-          <p className="text-lg text-blue-200 mb-8 bangla-text">আপনার বিনিয়োগের নিরাপদ সঙ্গী</p>
-        </div>
-
-        {/* Loading Animation */}
-        <div
-          className={`transition-all duration-1000 delay-700 ${
-            animate ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
-          }`}
-        >
-          <div className="flex justify-center space-x-2">
-            <div className="w-3 h-3 bg-white rounded-full animate-bounce"></div>
-            <div className="w-3 h-3 bg-white rounded-full animate-bounce delay-100"></div>
-            <div className="w-3 h-3 bg-white rounded-full animate-bounce delay-200"></div>
+          <div className="bg-white/20 rounded-full h-2 overflow-hidden">
+            <div
+              className="bg-gradient-to-r from-yellow-400 to-orange-500 h-full rounded-full transition-all duration-300 ease-out"
+              style={{ width: `${progress}%` }}
+            ></div>
           </div>
-          <p className="text-blue-200 mt-4 text-sm">লোড হচ্ছে...</p>
+          <div className="text-center mt-4 text-white/80 text-sm">লোড হচ্ছে... {progress}%</div>
+        </div>
+
+        {/* Features */}
+        <div
+          className={`text-center space-y-2 transition-all duration-1000 delay-1500 ${
+            showLogo ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
+          }`}
+        >
+          <div className="text-white/60 text-sm">✨ দৈনিক রিটার্ন • 🎁 বোনাস সিস্টেম • 🔒 নিরাপদ বিনিয়োগ</div>
         </div>
       </div>
 
-      {/* Bottom Decoration */}
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/20 to-transparent"></div>
+      {/* Bottom Text */}
+      <div className="absolute bottom-8 text-center text-white/40 text-xs">
+        © 2024 AMAC Investment. All rights reserved.
+      </div>
     </div>
   )
 }

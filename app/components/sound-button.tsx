@@ -3,47 +3,58 @@
 import type React from "react"
 
 import { Button } from "@/components/ui/button"
-import { useSound } from "../hooks/use-sound"
-import { forwardRef } from "react"
+import { useSound } from "@/app/hooks/use-sound"
+import { Volume2, VolumeX } from "lucide-react"
+import { useState } from "react"
 
-interface SoundButtonProps extends React.ComponentProps<typeof Button> {
-  soundType?: "click" | "success" | "error" | "notification"
+interface SoundButtonProps {
+  children: React.ReactNode
+  soundType?: "click" | "success" | "error" | "notification" | "spin" | "reward"
+  className?: string
+  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link"
+  size?: "default" | "sm" | "lg" | "icon"
+  disabled?: boolean
+  onClick?: () => void
 }
 
-const SoundButton = forwardRef<HTMLButtonElement, SoundButtonProps>(
-  ({ onClick, soundType = "click", children, ...props }, ref) => {
-    const { sounds } = useSound()
+export default function SoundButton({
+  children,
+  soundType = "click",
+  className,
+  variant = "default",
+  size = "default",
+  disabled = false,
+  onClick,
+  ...props
+}: SoundButtonProps) {
+  const { playSound, toggleSound, isEnabled } = useSound()
 
-    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-      // Play sound based on type
-      switch (soundType) {
-        case "success":
-          sounds.success()
-          break
-        case "error":
-          sounds.error()
-          break
-        case "notification":
-          sounds.notification()
-          break
-        default:
-          sounds.buttonClick()
-      }
-
-      // Call original onClick if provided
-      if (onClick) {
-        onClick(e)
-      }
+  const handleClick = () => {
+    if (!disabled) {
+      playSound(soundType)
+      onClick?.()
     }
+  }
 
-    return (
-      <Button ref={ref} onClick={handleClick} {...props}>
-        {children}
-      </Button>
-    )
-  },
-)
+  return (
+    <Button className={className} variant={variant} size={size} disabled={disabled} onClick={handleClick} {...props}>
+      {children}
+    </Button>
+  )
+}
 
-SoundButton.displayName = "SoundButton"
+export function SoundToggleButton() {
+  const { toggleSound, isEnabled } = useSound()
+  const [soundEnabled, setSoundEnabled] = useState(isEnabled)
 
-export { SoundButton }
+  const handleToggle = () => {
+    const newState = toggleSound()
+    setSoundEnabled(newState)
+  }
+
+  return (
+    <Button variant="ghost" size="icon" onClick={handleToggle} className="text-white hover:bg-white/20">
+      {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+    </Button>
+  )
+}

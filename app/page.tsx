@@ -9,42 +9,59 @@ import type { User } from "./lib/database"
 export default function Home() {
   const [currentScreen, setCurrentScreen] = useState<"splash" | "auth" | "home">("splash")
   const [user, setUser] = useState<User | null>(null)
+  const [dailyBonus, setDailyBonus] = useState<number>(0)
 
   useEffect(() => {
-    // Check if user is already logged in
-    const storedUser = localStorage.getItem("user")
+    // Check for stored user session
+    const storedUser = localStorage.getItem("amac_user")
     if (storedUser) {
-      setUser(JSON.parse(storedUser))
-      setCurrentScreen("home")
-    } else {
-      // Show splash screen for 3 seconds
-      const timer = setTimeout(() => {
-        setCurrentScreen("auth")
-      }, 3000)
-
-      return () => clearTimeout(timer)
+      try {
+        const userData = JSON.parse(storedUser)
+        setUser(userData)
+        setCurrentScreen("home")
+      } catch (error) {
+        console.error("Error parsing stored user:", error)
+        localStorage.removeItem("amac_user")
+      }
     }
   }, [])
 
-  const handleAuthSuccess = (userData: User) => {
+  const handleSplashComplete = () => {
+    if (user) {
+      setCurrentScreen("home")
+    } else {
+      setCurrentScreen("auth")
+    }
+  }
+
+  const handleAuthSuccess = (userData: User, bonus?: number) => {
     setUser(userData)
-    localStorage.setItem("user", JSON.stringify(userData))
+    setDailyBonus(bonus || 0)
+
+    // Store user session
+    localStorage.setItem("amac_user", JSON.stringify(userData))
+
     setCurrentScreen("home")
   }
 
   const handleLogout = () => {
     setUser(null)
-    localStorage.removeItem("user")
+    setDailyBonus(0)
+    localStorage.removeItem("amac_user")
     setCurrentScreen("auth")
   }
 
   if (currentScreen === "splash") {
-    return <SplashScreen />
+    return <SplashScreen onComplete={handleSplashComplete} />
   }
 
   if (currentScreen === "auth") {
     return <AuthScreen onAuthSuccess={handleAuthSuccess} />
   }
 
-  return <CompleteHomeScreen user={user} />
+  if (currentScreen === "home" && user) {
+    return <CompleteHomeScreen user={user} dailyBonus={dailyBonus} onLogout={handleLogout} onUserUpdate={setUser} />
+  }
+
+  return <SplashScreen onComplete={handleSplashComplete} />
 }

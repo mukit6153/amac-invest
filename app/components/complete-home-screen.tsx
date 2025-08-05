@@ -2,759 +2,652 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   Home,
   TrendingUp,
+  Wallet,
   Gift,
   Users,
   Settings,
   Bell,
-  Wallet,
-  ArrowUpRight,
-  ArrowDownLeft,
-  Calendar,
-  Trophy,
-  Zap,
-  CheckCircle,
-  AlertCircle,
-  Info,
-  LogOut,
   Eye,
   EyeOff,
+  Copy,
+  Share2,
+  ChevronRight,
+  Target,
+  Calendar,
+  ArrowUpRight,
+  LogOut,
+  UserIcon,
+  ShoppingBag,
+  Gamepad2,
+  PartyPopper,
+  Volume2,
+  VolumeX,
 } from "lucide-react"
-import { type User, dataFunctions, actionFunctions } from "@/app/lib/database"
-import { useSound } from "@/app/hooks/use-sound"
+import { useSound } from "../hooks/use-sound"
+import SoundButton from "./sound-button"
+import type { User as UserType, InvestmentPackage, Transaction } from "../lib/database"
 
 interface CompleteHomeScreenProps {
-  user: User
-  dailyBonus: number
-  onLogout: () => void
-  onUserUpdate: (user: User) => void
+  user: UserType
+  dailyBonus?: number
+  onLogout?: () => void
+  onUserUpdate?: (user: UserType) => void
 }
 
-export default function CompleteHomeScreen({ user, dailyBonus, onLogout, onUserUpdate }: CompleteHomeScreenProps) {
-  const [activeTab, setActiveTab] = useState("home")
+export default function CompleteHomeScreen({
+  user: initialUser,
+  dailyBonus = 0,
+  onLogout,
+  onUserUpdate,
+}: CompleteHomeScreenProps) {
+  const [user, setUser] = useState<UserType | null>(initialUser || null)
+  const [currentScreen, setCurrentScreen] = useState("home")
   const [showBalance, setShowBalance] = useState(true)
-  const [banners, setBanners] = useState<any[]>([])
-  const [packages, setPackages] = useState<any[]>([])
-  const [tasks, setTasks] = useState<any[]>([])
-  const [events, setEvents] = useState<any[]>([])
-  const [gifts, setGifts] = useState<any[]>([])
-  const [transactions, setTransactions] = useState<any[]>([])
-  const [investments, setInvestments] = useState<any[]>([])
+  const [showDailyBonus, setShowDailyBonus] = useState(false)
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0)
+  const [loading, setLoading] = useState(false)
+
+  // Data states
+  const [investments, setInvestments] = useState<InvestmentPackage[]>([])
+  const [transactions, setTransactions] = useState<Transaction[]>([])
   const [notifications, setNotifications] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [success, setSuccess] = useState("")
-  const [showDailyBonusDialog, setShowDailyBonusDialog] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
 
-  const { playSound } = useSound()
+  const { sounds, isEnabled: soundEnabled, setIsEnabled: setSoundEnabled, playSound } = useSound()
 
-  // Load data on component mount
+  const investmentPackages = [
+    {
+      id: 1,
+      name: "স্টার্টার প্যাকেজ",
+      minAmount: 500,
+      maxAmount: 2000,
+      dailyReturn: 3,
+      duration: 30,
+      totalReturn: 90,
+      popular: false,
+    },
+    {
+      id: 2,
+      name: "প্রিমিয়াম প্যাকেজ",
+      minAmount: 2000,
+      maxAmount: 10000,
+      dailyReturn: 4,
+      duration: 30,
+      totalReturn: 120,
+      popular: true,
+    },
+    {
+      id: 3,
+      name: "ভিআইপি প্যাকেজ",
+      minAmount: 10000,
+      maxAmount: 50000,
+      dailyReturn: 5,
+      duration: 30,
+      totalReturn: 150,
+      popular: false,
+    },
+  ]
+
+  const recentTransactions = [
+    {
+      id: 1,
+      type: "investment",
+      amount: 1000,
+      status: "completed",
+      date: "2024-01-15",
+      description: "প্রিমিয়াম প্যাকেজে বিনিয়োগ",
+    },
+    {
+      id: 2,
+      type: "earning",
+      amount: 40,
+      status: "completed",
+      date: "2024-01-14",
+      description: "দৈনিক রিটার্ন",
+    },
+    {
+      id: 3,
+      type: "referral",
+      amount: 100,
+      status: "completed",
+      date: "2024-01-13",
+      description: "রেফারেল বোনাস",
+    },
+  ]
+
+  const quickActions = [
+    { id: "invest", icon: TrendingUp, label: "বিনিয়োগ", color: "bg-blue-500" },
+    { id: "withdraw", icon: Wallet, label: "উত্তোলন", color: "bg-green-500" },
+    { id: "tasks", icon: Target, label: "টাস্ক", color: "bg-purple-500" },
+    { id: "referral", icon: Users, label: "রেফার", color: "bg-orange-500" },
+    { id: "spin", icon: Gamepad2, label: "স্পিন", color: "bg-pink-500" },
+    { id: "events", icon: Calendar, label: "ইভেন্ট", color: "bg-indigo-500" },
+    { id: "gifts", icon: Gift, label: "গিফট", color: "bg-red-500" },
+    { id: "store", icon: ShoppingBag, label: "স্টোর", color: "bg-cyan-500" },
+  ]
+
+  const bannersData = [
+    {
+      id: 1,
+      title: "বিশেষ বোনাস অফার!",
+      subtitle: "৫০% পর্যন্ত বোনাস পান",
+      image: "/placeholder.svg?height=120&width=300&text=Special+Bonus",
+      color: "from-purple-500 to-pink-500",
+    },
+    {
+      id: 2,
+      title: "নতুন প্যাকেজ চালু!",
+      subtitle: "দৈনিক ৫% রিটার্ন",
+      image: "/placeholder.svg?height=120&width=300&text=New+Package",
+      color: "from-blue-500 to-cyan-500",
+    },
+    {
+      id: 3,
+      title: "রেফার করুন ও আয় করুন",
+      subtitle: "১০% কমিশন পান",
+      image: "/placeholder.svg?height=120&width=300&text=Referral+Bonus",
+      color: "from-green-500 to-emerald-500",
+    },
+  ]
+
+  // Auto-rotate banners
   useEffect(() => {
-    loadData()
+    const interval = setInterval(() => {
+      setCurrentBannerIndex((prev) => (prev + 1) % bannersData.length)
+    }, 4000)
+    return () => clearInterval(interval)
+  }, [bannersData.length])
 
-    // Show daily bonus dialog if there's a bonus
-    if (dailyBonus > 0) {
-      setShowDailyBonusDialog(true)
-      playSound("reward")
+  // Check for daily bonus
+  useEffect(() => {
+    const lastBonusDate = localStorage.getItem("lastBonusDate")
+    const today = new Date().toDateString()
+
+    if (lastBonusDate !== today) {
+      setShowDailyBonus(true)
     }
-  }, [dailyBonus])
+  }, [])
 
-  const loadData = async () => {
-    try {
-      const [
-        bannersData,
-        packagesData,
-        tasksData,
-        eventsData,
-        giftsData,
-        transactionsData,
-        investmentsData,
-        notificationsData,
-      ] = await Promise.all([
-        dataFunctions.getBanners(),
-        dataFunctions.getInvestmentPackages(),
-        dataFunctions.getActiveTasks(),
-        dataFunctions.getActiveEvents(),
-        dataFunctions.getActiveGifts(),
-        dataFunctions.getUserTransactions(user.id),
-        dataFunctions.getUserInvestments(user.id),
-        dataFunctions.getUserNotifications(user.id),
-      ])
+  const handleDailyBonus = () => {
+    playSound("success")
+    localStorage.setItem("lastBonusDate", new Date().toDateString())
+    setShowDailyBonus(false)
+    // Add bonus logic here
+  }
 
-      setBanners(bannersData)
-      setPackages(packagesData)
-      setTasks(tasksData)
-      setEvents(eventsData)
-      setGifts(giftsData)
-      setTransactions(transactionsData)
-      setInvestments(investmentsData)
-      setNotifications(notificationsData)
-    } catch (error) {
-      console.warn("Error loading data:", error)
+  const handleQuickAction = async (action: string, data?: any) => {
+    if (soundEnabled) sounds.buttonClick()
+    playSound("click")
+
+    switch (action) {
+      case "spin":
+        setCurrentScreen("spin")
+        break
+      case "events":
+        setCurrentScreen("events")
+        break
+      case "freegift":
+        setCurrentScreen("freegift")
+        break
+      case "tasks":
+        setCurrentScreen("tasks")
+        break
+      case "invest":
+        setCurrentScreen("investment")
+        break
+      case "withdraw":
+        setCurrentScreen("withdraw")
+        break
+      case "referral":
+        setCurrentScreen("referral")
+        break
+      case "store":
+        setCurrentScreen("store")
+        break
+      case "profile":
+        setCurrentScreen("profile")
+        break
+      case "settings":
+        setCurrentScreen("settings")
+        break
+      default:
+        setCurrentScreen("home")
     }
   }
 
-  const handleSpinWheel = async (type: "daily" | "premium" | "mega") => {
-    setIsLoading(true)
-    setError("")
-    setSuccess("")
+  const copyReferralCode = () => {
+    navigator.clipboard.writeText(user?.referralCode || "")
+    playSound("success")
+    alert("রেফারেল কোড কপি হয়েছে!")
+  }
 
-    try {
-      playSound("spin")
+  const shareReferralCode = () => {
+    if (user?.referralCode && navigator.share) {
+      navigator.share({
+        title: "AMAC Investment এ যোগ দিন",
+        text: `আমার রেফারেল কোড ব্যবহার করে AMAC Investment এ যোগ দিন এবং বোনাস পান: ${user.referralCode}`,
+        url: `https://amac-investment.com/register?ref=${user.referralCode}`,
+      })
+    }
+    if (soundEnabled) sounds.buttonClick()
+  }
 
-      const result = await actionFunctions.spinWheel(user.id, type)
-
-      if (result.success) {
-        playSound("reward")
-        setSuccess(`🎉 অভিনন্দন! আপনি ৳${result.prizeAmount} ${result.prizeType === "cash" ? "ক্যাশ" : "বোনাস"} জিতেছেন!`)
-
-        // Update user balance
-        const updatedUser = {
-          ...user,
-          balance: result.prizeType === "cash" ? user.balance + result.prizeAmount : user.balance,
-          bonus_balance: result.prizeType === "bonus" ? user.bonus_balance + result.prizeAmount : user.bonus_balance,
-        }
-        onUserUpdate(updatedUser)
-
-        // Reload data
-        loadData()
-      } else {
-        playSound("error")
-        setError(result.error || "স্পিন করতে সমস্যা হয়েছে")
+  // Safe access to user properties with defaults
+  const safeUser = user
+    ? {
+        ...user,
+        balance: user.balance || 0,
+        invested: user.invested || 0,
+        earned: user.earned || 0,
       }
-    } catch (error: any) {
-      playSound("error")
-      setError(error.message || "স্পিন করতে সমস্যা হয়েছে")
-    } finally {
-      setIsLoading(false)
-    }
+    : null
+
+  if (currentScreen !== "home") {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card className="w-full max-w-md mx-4">
+          <CardHeader>
+            <CardTitle className="text-center bengali-text">
+              {currentScreen === "investment" && "বিনিয়োগ"}
+              {currentScreen === "withdraw" && "উত্তোলন"}
+              {currentScreen === "tasks" && "টাস্ক"}
+              {currentScreen === "referral" && "রেফারেল"}
+              {currentScreen === "spin" && "স্পিন হুইল"}
+              {currentScreen === "events" && "ইভেন্ট"}
+              {currentScreen === "gifts" && "গিফট"}
+              {currentScreen === "store" && "স্টোর"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-center">
+            <p className="text-gray-600 mb-4 bengali-text">এই ফিচারটি শীঘ্রই আসছে...</p>
+            <Button onClick={() => setCurrentScreen("home")} className="bengali-text">
+              হোমে ফিরুন
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
-  const handleCompleteTask = async (taskId: string) => {
-    setIsLoading(true)
-    setError("")
-    setSuccess("")
-
-    try {
-      playSound("click")
-
-      const result = await actionFunctions.completeTask(user.id, taskId)
-
-      if (result.success) {
-        playSound("success")
-        setSuccess(`🎉 টাস্ক সম্পন্ন! ৳${result.reward} বোনাস পেয়েছেন!`)
-
-        // Update user balance
-        const updatedUser = {
-          ...user,
-          bonus_balance: user.bonus_balance + result.reward,
-        }
-        onUserUpdate(updatedUser)
-
-        // Reload data
-        loadData()
-      } else {
-        playSound("error")
-        setError(result.error || "টাস্ক সম্পন্ন করতে সমস্যা হয়েছে")
-      }
-    } catch (error: any) {
-      playSound("error")
-      setError(error.message || "টাস্ক সম্পন্ন করতে সমস্যা হয়েছে")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleClaimGift = async (giftId: string) => {
-    setIsLoading(true)
-    setError("")
-    setSuccess("")
-
-    try {
-      playSound("click")
-
-      const result = await actionFunctions.claimGift(user.id, giftId)
-
-      if (result.success) {
-        playSound("reward")
-        setSuccess(`🎁 গিফট ক্লেইম সফল! ৳${result.reward} বোনাস পেয়েছেন!`)
-
-        // Update user balance
-        const updatedUser = {
-          ...user,
-          bonus_balance: user.bonus_balance + result.reward,
-        }
-        onUserUpdate(updatedUser)
-
-        // Reload data
-        loadData()
-      } else {
-        playSound("error")
-        setError(result.error || "গিফট ক্লেইম করতে সমস্যা হয়েছে")
-      }
-    } catch (error: any) {
-      playSound("error")
-      setError(error.message || "গিফট ক্লেইম করতে সমস্যা হয়েছে")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("bn-BD", {
-      style: "currency",
-      currency: "BDT",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    })
-      .format(amount)
-      .replace("BDT", "৳")
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("bn-BD")
+  if (!safeUser) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-2xl font-bold text-white">A</span>
+          </div>
+          <p className="text-gray-600">লগইন করুন</p>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-xl font-bold">স্বাগতম, {user.name}</h1>
-            <p className="text-blue-100 text-sm">আজ একটি দুর্দান্ত দিন!</p>
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 sticky top-0 z-50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+              <UserIcon className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <h1 className="font-semibold bengali-text">স্বাগতম, {safeUser.name}</h1>
+              <p className="text-xs opacity-90">ID: {safeUser.id}</p>
+            </div>
           </div>
+
           <div className="flex items-center space-x-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-white/20"
-              onClick={() => setShowBalance(!showBalance)}
+            <SoundButton
+              soundType="click"
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              className="relative h-8 w-8 p-0"
             >
-              {showBalance ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+              {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            </SoundButton>
+            <Button variant="ghost" size="sm" className="relative text-white hover:bg-white/20">
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <Badge className="absolute -top-1 -right-1 w-5 h-5 text-xs bg-red-500 border-0">{unreadCount}</Badge>
+              )}
             </Button>
-            <Button variant="ghost" size="sm" className="text-white hover:bg-white/20" onClick={onLogout}>
-              <LogOut className="w-4 h-4" />
+            <Button variant="ghost" size="sm" onClick={onLogout} className="text-white hover:bg-white/20">
+              <LogOut className="w-5 h-5" />
             </Button>
-          </div>
-        </div>
-
-        {/* Balance Cards */}
-        <div className="grid grid-cols-2 gap-4">
-          <Card className="bg-white/10 border-white/20">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100 text-sm">মূল ব্যালেন্স</p>
-                  <p className="text-2xl font-bold">{showBalance ? formatCurrency(user.balance) : "****"}</p>
-                </div>
-                <Wallet className="w-8 h-8 text-blue-200" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white/10 border-white/20">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100 text-sm">বোনাস ব্যালেন্স</p>
-                  <p className="text-2xl font-bold">{showBalance ? formatCurrency(user.bonus_balance) : "****"}</p>
-                </div>
-                <Gift className="w-8 h-8 text-blue-200" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mt-4">
-          <div className="text-center">
-            <p className="text-2xl font-bold">{user.login_streak}</p>
-            <p className="text-blue-100 text-xs">দিনের স্ট্রিক</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-bold">{formatCurrency(user.total_invested).replace("৳", "")}</p>
-            <p className="text-blue-100 text-xs">মোট বিনিয়োগ</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-bold">{formatCurrency(user.total_earned).replace("৳", "")}</p>
-            <p className="text-blue-100 text-xs">মোট আয়</p>
           </div>
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
-        <div className="bg-white border-b">
-          <TabsList className="grid w-full grid-cols-5 h-16">
-            <TabsTrigger value="home" className="flex flex-col items-center space-y-1">
-              <Home className="w-5 h-5" />
-              <span className="text-xs">হোম</span>
-            </TabsTrigger>
-            <TabsTrigger value="invest" className="flex flex-col items-center space-y-1">
-              <TrendingUp className="w-5 h-5" />
-              <span className="text-xs">বিনিয়োগ</span>
-            </TabsTrigger>
-            <TabsTrigger value="earn" className="flex flex-col items-center space-y-1">
-              <Gift className="w-5 h-5" />
-              <span className="text-xs">আয় করুন</span>
-            </TabsTrigger>
-            <TabsTrigger value="referral" className="flex flex-col items-center space-y-1">
-              <Users className="w-5 h-5" />
-              <span className="text-xs">রেফার</span>
-            </TabsTrigger>
-            <TabsTrigger value="profile" className="flex flex-col items-center space-y-1">
-              <Settings className="w-5 h-5" />
-              <span className="text-xs">প্রোফাইল</span>
-            </TabsTrigger>
-          </TabsList>
+      {/* Banner Slider */}
+      <div className="relative h-32 overflow-hidden">
+        {bannersData.map((banner, index) => (
+          <div
+            key={banner.id}
+            className={`absolute inset-0 transition-transform duration-500 ${
+              index === currentBannerIndex
+                ? "translate-x-0"
+                : index < currentBannerIndex
+                  ? "-translate-x-full"
+                  : "translate-x-full"
+            }`}
+          >
+            <div
+              className={`h-full bg-gradient-to-r ${banner.color} flex items-center justify-between px-4 text-white`}
+            >
+              <div>
+                <h3 className="font-bold text-lg bengali-text">{banner.title}</h3>
+                <p className="text-sm opacity-90 bengali-text">{banner.subtitle}</p>
+              </div>
+              <div className="w-16 h-16 bg-white/20 rounded-lg flex items-center justify-center">
+                <Gift className="w-8 h-8" />
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {/* Banner Indicators */}
+        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1">
+          {bannersData.map((_, index) => (
+            <div
+              key={index}
+              className={`w-2 h-2 rounded-full ${index === currentBannerIndex ? "bg-white" : "bg-white/50"}`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Balance Cards */}
+      <div className="p-4 space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm opacity-90 bengali-text">মোট ব্যালেন্স</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowBalance(!showBalance)}
+                  className="text-white hover:bg-white/20 p-1"
+                >
+                  {showBalance ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                </Button>
+              </div>
+              <p className="text-xl font-bold">{showBalance ? `৳${safeUser.balance.toLocaleString()}` : "৳****"}</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm opacity-90 bengali-text">মোট বিনিয়োগ</span>
+                <TrendingUp className="w-4 h-4" />
+              </div>
+              <p className="text-xl font-bold">{showBalance ? `৳${safeUser.invested.toLocaleString()}` : "৳****"}</p>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Tab Contents */}
-        <div className="flex-1 overflow-y-auto">
-          {/* Home Tab */}
-          <TabsContent value="home" className="p-4 space-y-4">
-            {/* Banners */}
-            {banners.length > 0 && (
-              <div className="space-y-4">
-                {banners.map((banner) => (
-                  <Card key={banner.id} className="overflow-hidden">
-                    <div className="h-32 bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                      <div className="text-center text-white">
-                        <h3 className="text-lg font-bold">{banner.title_bn}</h3>
-                        <p className="text-sm opacity-90">{banner.description_bn}</p>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
+        <Card className="bg-gradient-to-br from-purple-500 to-pink-600 text-white">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm opacity-90 bengali-text">মোট আয়</span>
+                <p className="text-2xl font-bold">{showBalance ? `৳${safeUser.earned.toLocaleString()}` : "৳****"}</p>
               </div>
-            )}
-
-            {/* Quick Actions */}
-            <div className="grid grid-cols-2 gap-4">
-              <Button
-                className="h-20 flex flex-col items-center space-y-2"
-                onClick={() => handleSpinWheel("daily")}
-                disabled={isLoading}
-              >
-                <Zap className="w-6 h-6" />
-                <span>ফ্রি স্পিন</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="h-20 flex flex-col items-center space-y-2 bg-transparent"
-                onClick={() => setActiveTab("earn")}
-              >
-                <Trophy className="w-6 h-6" />
-                <span>টাস্ক করুন</span>
-              </Button>
+              <div className="text-right">
+                <div className="flex items-center text-sm">
+                  <ArrowUpRight className="w-4 h-4 mr-1" />
+                  <span>+12.5%</span>
+                </div>
+                <span className="text-xs opacity-75 bengali-text">গত মাসের তুলনায়</span>
+              </div>
             </div>
+          </CardContent>
+        </Card>
+      </div>
 
-            {/* Recent Transactions */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">সাম্প্রতিক লেনদেন</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {transactions.length > 0 ? (
-                  <div className="space-y-3">
-                    {transactions.slice(0, 5).map((transaction) => (
-                      <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <div
-                            className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                              transaction.type === "bonus"
-                                ? "bg-green-100"
-                                : transaction.type === "investment"
-                                  ? "bg-blue-100"
-                                  : transaction.type === "withdraw"
-                                    ? "bg-red-100"
-                                    : "bg-gray-100"
-                            }`}
-                          >
-                            {transaction.type === "bonus" && <Gift className="w-5 h-5 text-green-600" />}
-                            {transaction.type === "investment" && <TrendingUp className="w-5 h-5 text-blue-600" />}
-                            {transaction.type === "withdraw" && <ArrowDownLeft className="w-5 h-5 text-red-600" />}
-                            {transaction.type === "deposit" && <ArrowUpRight className="w-5 h-5 text-green-600" />}
-                          </div>
-                          <div>
-                            <p className="font-medium text-sm">{transaction.description}</p>
-                            <p className="text-xs text-gray-500">{formatDate(transaction.created_at)}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p
-                            className={`font-bold ${
-                              transaction.type === "withdraw" ? "text-red-600" : "text-green-600"
-                            }`}
-                          >
-                            {transaction.type === "withdraw" ? "-" : "+"}৳{transaction.amount}
-                          </p>
-                          <Badge
-                            variant={
-                              transaction.status === "completed"
-                                ? "default"
-                                : transaction.status === "pending"
-                                  ? "secondary"
-                                  : "destructive"
-                            }
-                            className="text-xs"
-                          >
-                            {transaction.status === "completed"
-                              ? "সম্পন্ন"
-                              : transaction.status === "pending"
-                                ? "অপেক্ষমাণ"
-                                : "ব্যর্থ"}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-center text-gray-500 py-8">কোন লেনদেন নেই</p>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+      {/* Quick Actions */}
+      <div className="px-4 mb-4">
+        <h2 className="text-lg font-semibold mb-3 bengali-text">দ্রুত অ্যাকশন</h2>
+        <div className="grid grid-cols-4 gap-3">
+          {quickActions.map((action) => (
+            <Button
+              key={action.id}
+              variant="ghost"
+              onClick={() => handleQuickAction(action.id)}
+              className="flex flex-col items-center p-3 h-auto space-y-2 hover:bg-gray-100"
+            >
+              <div className={`w-12 h-12 ${action.color} rounded-xl flex items-center justify-center text-white`}>
+                <action.icon className="w-6 h-6" />
+              </div>
+              <span className="text-xs bengali-text">{action.label}</span>
+            </Button>
+          ))}
+        </div>
+      </div>
 
-          {/* Investment Tab */}
-          <TabsContent value="invest" className="p-4 space-y-4">
-            <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold mb-2">বিনিয়োগ প্যাকেজ</h2>
-              <p className="text-gray-600">আপনার পছন্দের প্যাকেজ বেছে নিন</p>
-            </div>
+      {/* Investment Packages */}
+      <div className="px-4 mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold bengali-text">বিনিয়োগ প্যাকেজ</h2>
+          <Button variant="ghost" size="sm" className="text-blue-600">
+            <span className="bengali-text">সব দেখুন</span>
+            <ChevronRight className="w-4 h-4 ml-1" />
+          </Button>
+        </div>
 
-            <div className="space-y-4">
-              {packages.map((pkg) => (
-                <Card key={pkg.id} className="overflow-hidden">
-                  <CardHeader
-                    className={`bg-gradient-to-r ${
-                      pkg.color === "blue"
-                        ? "from-blue-500 to-blue-600"
-                        : pkg.color === "purple"
-                          ? "from-purple-500 to-purple-600"
-                          : pkg.color === "gold"
-                            ? "from-yellow-500 to-orange-500"
-                            : "from-gray-500 to-gray-600"
-                    } text-white`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-xl">{pkg.name_bn}</CardTitle>
-                        <CardDescription className="text-white/80">দৈনিক {pkg.daily_rate}% রিটার্ন</CardDescription>
-                      </div>
-                      <div className="text-3xl">{pkg.icon}</div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4">
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <p className="text-sm text-gray-600">সর্বনিম্ন</p>
-                        <p className="font-bold">{formatCurrency(pkg.min_amount)}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">সর্বোচ্চ</p>
-                        <p className="font-bold">{formatCurrency(pkg.max_amount)}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">মেয়াদ</p>
-                        <p className="font-bold">{pkg.total_days} দিন</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">মোট রিটার্ন</p>
-                        <p className="font-bold text-green-600">{pkg.total_return_rate}%</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 mb-4">
-                      {pkg.features.map((feature: string, index: number) => (
-                        <div key={index} className="flex items-center space-x-2">
-                          <CheckCircle className="w-4 h-4 text-green-500" />
-                          <span className="text-sm">{feature}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <Button className="w-full" disabled={isLoading}>
-                      বিনিয়োগ করুন
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-
-          {/* Earn Tab */}
-          <TabsContent value="earn" className="p-4 space-y-4">
-            {/* Spin Wheel Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Zap className="w-5 h-5" />
-                  <span>স্পিন হুইল</span>
-                </CardTitle>
-                <CardDescription>স্পিন করে পুরস্কার জিতুন!</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-4">
-                  <Button
-                    variant="outline"
-                    className="h-20 flex flex-col items-center space-y-2 bg-transparent"
-                    onClick={() => handleSpinWheel("daily")}
-                    disabled={isLoading}
-                  >
-                    <div className="text-2xl">🎯</div>
-                    <div className="text-center">
-                      <p className="font-bold">ফ্রি</p>
-                      <p className="text-xs">দৈনিক স্পিন</p>
-                    </div>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="h-20 flex flex-col items-center space-y-2 bg-transparent"
-                    onClick={() => handleSpinWheel("premium")}
-                    disabled={isLoading}
-                  >
-                    <div className="text-2xl">💎</div>
-                    <div className="text-center">
-                      <p className="font-bold">৳১০০</p>
-                      <p className="text-xs">প্রিমিয়াম</p>
-                    </div>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="h-20 flex flex-col items-center space-y-2 bg-transparent"
-                    onClick={() => handleSpinWheel("mega")}
-                    disabled={isLoading}
-                  >
-                    <div className="text-2xl">👑</div>
-                    <div className="text-center">
-                      <p className="font-bold">৳৫০০</p>
-                      <p className="text-xs">মেগা</p>
-                    </div>
-                  </Button>
+        <div className="space-y-3">
+          {investmentPackages.map((pkg) => (
+            <Card key={pkg.id} className="relative overflow-hidden">
+              {pkg.popular && (
+                <div className="absolute top-2 right-2">
+                  <Badge className="bg-orange-500 text-white">জনপ্রিয়</Badge>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Tasks Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Trophy className="w-5 h-5" />
-                  <span>দৈনিক টাস্ক</span>
-                </CardTitle>
-                <CardDescription>টাস্ক সম্পন্ন করে বোনাস আয় করুন</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {tasks.map((task) => (
-                    <div key={task.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <div className="text-2xl">{task.icon}</div>
-                        <div>
-                          <p className="font-medium">{task.title_bn}</p>
-                          <p className="text-sm text-gray-600">{task.description_bn}</p>
-                          <p className="text-xs text-green-600 font-bold">পুরস্কার: ৳{task.reward}</p>
-                        </div>
-                      </div>
-                      <Button size="sm" onClick={() => handleCompleteTask(task.id)} disabled={isLoading}>
-                        সম্পন্ন করুন
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Gifts Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Gift className="w-5 h-5" />
-                  <span>ফ্রি গিফট</span>
-                </CardTitle>
-                <CardDescription>প্রতিদিন ফ্রি গিফট ক্লেইম করুন</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {gifts.map((gift) => (
-                    <div key={gift.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <div className="text-2xl">{gift.icon}</div>
-                        <div>
-                          <p className="font-medium">{gift.title_bn}</p>
-                          <p className="text-sm text-gray-600">{gift.description_bn}</p>
-                          <p className="text-xs text-green-600 font-bold">পুরস্কার: ৳{gift.reward}</p>
-                        </div>
-                      </div>
-                      <Button size="sm" onClick={() => handleClaimGift(gift.id)} disabled={isLoading}>
-                        ক্লেইম করুন
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Referral Tab */}
-          <TabsContent value="referral" className="p-4 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Users className="w-5 h-5" />
-                  <span>রেফারেল প্রোগ্রাম</span>
-                </CardTitle>
-                <CardDescription>বন্ধুদের রেফার করে কমিশন আয় করুন</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center mb-6">
-                  <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-lg mb-4">
-                    <p className="text-sm mb-2">আপনার রেফারেল কোড</p>
-                    <p className="text-2xl font-bold tracking-wider">{user.referral_code}</p>
-                  </div>
-                  <Button className="w-full mb-4">কোড শেয়ার করুন</Button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="text-center p-4 bg-green-50 rounded-lg">
-                    <p className="text-2xl font-bold text-green-600">0</p>
-                    <p className="text-sm text-gray-600">মোট রেফার</p>
-                  </div>
-                  <div className="text-center p-4 bg-blue-50 rounded-lg">
-                    <p className="text-2xl font-bold text-blue-600">৳0</p>
-                    <p className="text-sm text-gray-600">মোট কমিশন</p>
+              )}
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold bengali-text">{pkg.name}</h3>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-green-600">{pkg.dailyReturn}%</p>
+                    <p className="text-xs text-gray-500 bengali-text">দৈনিক</p>
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <h3 className="font-bold">কমিশন রেট:</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <span>লেভেল ১ (সরাসরি রেফার)</span>
-                      <Badge>১০%</Badge>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <span>লেভেল ২ (পরোক্ষ রেফার)</span>
-                      <Badge>৫%</Badge>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <span>লেভেল ৩ (পরোক্ষ রেফার)</span>
-                      <Badge>২%</Badge>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Profile Tab */}
-          <TabsContent value="profile" className="p-4 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>প্রোফাইল তথ্য</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center space-x-4">
-                  <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                    <span className="text-white text-xl font-bold">{user.name.charAt(0).toUpperCase()}</span>
+                <div className="grid grid-cols-3 gap-2 text-sm">
+                  <div>
+                    <p className="text-gray-500 bengali-text">সর্বনিম্ন</p>
+                    <p className="font-semibold">৳{pkg.minAmount}</p>
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold">{user.name}</h3>
-                    <p className="text-gray-600">{user.phone}</p>
-                    <Badge variant={user.kyc_status === "approved" ? "default" : "secondary"}>
-                      KYC:{" "}
-                      {user.kyc_status === "approved"
-                        ? "অনুমোদিত"
-                        : user.kyc_status === "pending"
-                          ? "অপেক্ষমাণ"
-                          : "প্রত্যাখ্যাত"}
+                    <p className="text-gray-500 bengali-text">সময়কাল</p>
+                    <p className="font-semibold">{pkg.duration} দিন</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 bengali-text">মোট রিটার্ন</p>
+                    <p className="font-semibold text-green-600">{pkg.totalReturn}%</p>
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full mt-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 bengali-text"
+                  onClick={() => handleQuickAction("invest")}
+                >
+                  বিনিয়োগ করুন
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* Recent Transactions */}
+      <div className="px-4 mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold bengali-text">সাম্প্রতিক লেনদেন</h2>
+          <Button variant="ghost" size="sm" className="text-blue-600">
+            <span className="bengali-text">সব দেখুন</span>
+            <ChevronRight className="w-4 h-4 ml-1" />
+          </Button>
+        </div>
+
+        <Card>
+          <CardContent className="p-0">
+            {recentTransactions.map((transaction, index) => (
+              <div key={transaction.id} className={`p-4 ${index !== recentTransactions.length - 1 ? "border-b" : ""}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        transaction.type === "investment"
+                          ? "bg-blue-100 text-blue-600"
+                          : transaction.type === "earning"
+                            ? "bg-green-100 text-green-600"
+                            : "bg-orange-100 text-orange-600"
+                      }`}
+                    >
+                      {transaction.type === "investment" ? (
+                        <TrendingUp className="w-5 h-5" />
+                      ) : transaction.type === "earning" ? (
+                        <ArrowUpRight className="w-5 h-5" />
+                      ) : (
+                        <Users className="w-5 h-5" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm bengali-text">{transaction.description}</p>
+                      <p className="text-xs text-gray-500">{transaction.date}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p
+                      className={`font-semibold ${
+                        transaction.type === "investment" ? "text-red-600" : "text-green-600"
+                      }`}
+                    >
+                      {transaction.type === "investment" ? "-" : "+"}৳{transaction.amount}
+                    </p>
+                    <Badge variant={transaction.status === "completed" ? "default" : "secondary"} className="text-xs">
+                      {transaction.status === "completed" ? "সম্পন্ন" : "অপেক্ষমাণ"}
                     </Badge>
                   </div>
                 </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <p className="text-sm text-gray-600">সদস্য হওয়ার তারিখ</p>
-                    <p className="font-bold">{formatDate(user.created_at)}</p>
-                  </div>
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <p className="text-sm text-gray-600">শেষ লগইন</p>
-                    <p className="font-bold">{formatDate(user.last_login)}</p>
-                  </div>
-                </div>
+      {/* Referral Section */}
+      <div className="px-4 mb-4">
+        <Card className="bg-gradient-to-r from-orange-500 to-red-500 text-white">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="font-semibold bengali-text">রেফারেল কোড</h3>
+                <p className="text-sm opacity-90 bengali-text">বন্ধুদের আমন্ত্রণ জানান</p>
+              </div>
+              <Users className="w-8 h-8 opacity-75" />
+            </div>
 
-                <div className="space-y-3">
-                  <Button variant="outline" className="w-full justify-start bg-transparent">
-                    <Settings className="w-4 h-4 mr-2" />
-                    সেটিংস
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start bg-transparent">
-                    <Bell className="w-4 h-4 mr-2" />
-                    নোটিফিকেশন
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start bg-transparent">
-                    <Info className="w-4 h-4 mr-2" />
-                    সাহায্য ও সাপোর্ট
-                  </Button>
-                  <Button variant="destructive" className="w-full justify-start" onClick={onLogout}>
-                    <LogOut className="w-4 h-4 mr-2" />
-                    লগ আউট
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+            <div className="bg-white/20 rounded-lg p-3 mb-3">
+              <p className="text-center text-xl font-bold tracking-wider">{safeUser.referralCode}</p>
+            </div>
+
+            <div className="flex space-x-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={copyReferralCode}
+                className="flex-1 bg-white/20 hover:bg-white/30 text-white border-0"
+              >
+                <Copy className="w-4 h-4 mr-2" />
+                <span className="bengali-text">কপি</span>
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={shareReferralCode}
+                className="flex-1 bg-white/20 hover:bg-white/30 text-white border-0"
+              >
+                <Share2 className="w-4 h-4 mr-2" />
+                <span className="bengali-text">শেয়ার</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Running Notice */}
+      <div className="px-4 mb-20">
+        <Card className="bg-yellow-50 border-yellow-200">
+          <CardContent className="p-3">
+            <div className="flex items-center space-x-2">
+              <Bell className="w-4 h-4 text-yellow-600 flex-shrink-0" />
+              <div className="overflow-hidden">
+                <p className="text-sm text-yellow-800 animate-marquee whitespace-nowrap bengali-text">
+                  🎉 নতুন ব্যবহারকারীদের জন্য ৫০% বোনাস! আজই রেজিস্ট্রেশন করুন এবং বিশেষ অফার পান।
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Bottom Navigation */}
+      <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md bg-white border-t shadow-lg">
+        <div className="grid grid-cols-5 py-2">
+          {[
+            { icon: Home, label: "হোম", active: true },
+            { icon: TrendingUp, label: "বিনিয়োগ", active: false },
+            { icon: Wallet, label: "ওয়ালেট", active: false },
+            { icon: Gift, label: "গিফট", active: false },
+            { icon: Settings, label: "সেটিংস", active: false },
+          ].map((item, index) => (
+            <Button
+              key={index}
+              variant="ghost"
+              className={`flex flex-col items-center py-2 px-1 h-auto space-y-1 ${
+                item.active ? "text-blue-600" : "text-gray-500"
+              }`}
+            >
+              <item.icon className="w-5 h-5" />
+              <span className="text-xs bengali-text">{item.label}</span>
+            </Button>
+          ))}
         </div>
-      </Tabs>
+      </div>
 
       {/* Daily Bonus Dialog */}
-      <Dialog open={showDailyBonusDialog} onOpenChange={setShowDailyBonusDialog}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={showDailyBonus} onOpenChange={setShowDailyBonus}>
+        <DialogContent className="max-w-sm mx-auto">
           <DialogHeader>
-            <DialogTitle className="text-center">🎉 দৈনিক লগইন বোনাস!</DialogTitle>
-            <DialogDescription className="text-center">অভিনন্দন! আপনি আজকের লগইন বোনাস পেয়েছেন</DialogDescription>
+            <DialogTitle className="text-center bengali-text">🎉 দৈনিক বোনাস!</DialogTitle>
           </DialogHeader>
-          <div className="text-center py-6">
-            <div className="w-20 h-20 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Gift className="w-10 h-10 text-white" />
+          <div className="text-center py-4">
+            <div className="w-20 h-20 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <PartyPopper className="w-10 h-10 text-white" />
             </div>
-            <p className="text-3xl font-bold text-green-600 mb-2">৳{dailyBonus}</p>
-            <p className="text-gray-600 mb-4">বোনাস আপনার অ্যাকাউন্টে যোগ হয়েছে</p>
-            <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
-              <Calendar className="w-4 h-4" />
-              <span>{user.login_streak} দিনের স্ট্রিক</span>
+            <h3 className="text-xl font-bold mb-2 bengali-text">অভিনন্দন!</h3>
+            <p className="text-gray-600 mb-4 bengali-text">আপনি আজকের দৈনিক বোনাস পেয়েছেন</p>
+            <div className="bg-green-100 rounded-lg p-4 mb-4">
+              <p className="text-2xl font-bold text-green-600">+৳50</p>
+              <p className="text-sm text-green-700 bengali-text">বোনাস যোগ হয়েছে</p>
             </div>
+            <Button
+              onClick={handleDailyBonus}
+              className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 bengali-text"
+            >
+              বোনাস সংগ্রহ করুন
+            </Button>
           </div>
-          <Button onClick={() => setShowDailyBonusDialog(false)} className="w-full">
-            ধন্যবাদ!
-          </Button>
         </DialogContent>
       </Dialog>
-
-      {/* Error Alert */}
-      {error && (
-        <Alert className="fixed bottom-4 left-4 right-4 border-red-200 bg-red-50 z-50">
-          <AlertCircle className="h-4 w-4 text-red-600" />
-          <AlertDescription className="text-red-800">{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {/* Success Alert */}
-      {success && (
-        <Alert className="fixed bottom-4 left-4 right-4 border-green-200 bg-green-50 z-50">
-          <CheckCircle className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-800">{success}</AlertDescription>
-        </Alert>
-      )}
     </div>
   )
 }

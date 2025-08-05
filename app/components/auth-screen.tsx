@@ -2,35 +2,34 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, EyeOff, Phone, Mail, Lock, Gift, CheckCircle, AlertCircle } from "lucide-react"
-import { authFunctions } from "@/app/lib/database"
-import { useSound } from "@/app/hooks/use-sound"
+import { Eye, EyeOff, Phone, Lock, Mail, Users } from "lucide-react"
+import { signIn, signUp } from "../lib/database"
 
 interface AuthScreenProps {
-  onAuthSuccess: (user: any, dailyBonus?: number) => void
+  onLogin: (user: any) => void
 }
 
-export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
-  const [activeTab, setActiveTab] = useState("login")
+export default function AuthScreen({ onLogin }: AuthScreenProps) {
   const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
 
-  // Form states
+  // Login form state
   const [loginData, setLoginData] = useState({
     phone: "",
     password: "",
   })
 
-  const [signupData, setSignupData] = useState({
+  // Register form state
+  const [registerData, setRegisterData] = useState({
     name: "",
     phone: "",
     email: "",
@@ -39,126 +38,132 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
     referralCode: "",
   })
 
-  const { playSound } = useSound()
-
-  // Clear messages when switching tabs
-  useEffect(() => {
-    setError("")
-    setSuccess("")
-  }, [activeTab])
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
+    setLoading(true)
     setError("")
-    setSuccess("")
 
     try {
-      playSound("click")
+      // Demo account check
+      if (loginData.phone === "01700000000" && loginData.password === "password123") {
+        const demoUser = {
+          id: "demo-user-1",
+          name: "ডেমো ব্যবহারকারী",
+          phone: "01700000000",
+          email: "demo@amac.com",
+          balance: 5000,
+          invested: 10000,
+          earned: 2500,
+          referralCode: "AMCDEMO",
+          joinDate: new Date().toISOString(),
+        }
+        onLogin(demoUser)
+        return
+      }
 
-      const result = await authFunctions.signIn(loginData.phone, loginData.password)
+      const result = await signIn(loginData.phone, loginData.password)
 
       if (result.success && result.user) {
-        playSound("success")
-        setSuccess("সফলভাবে লগইন হয়েছে!")
-
-        if (result.dailyBonus && result.dailyBonus > 0) {
-          setSuccess(`সফলভাবে লগইন হয়েছে! ৳${result.dailyBonus} দৈনিক বোনাস পেয়েছেন!`)
-        }
-
-        setTimeout(() => {
-          onAuthSuccess(result.user, result.dailyBonus)
-        }, 1500)
+        onLogin(result.user)
       } else {
-        playSound("error")
-        setError(result.error || "লগইনে সমস্যা হয়েছে")
+        setError(result.error || "লগইন ব্যর্থ হয়েছে")
       }
-    } catch (error: any) {
-      playSound("error")
-      setError(error.message || "লগইনে সমস্যা হয়েছে")
+    } catch (error) {
+      setError("লগইন করতে সমস্যা হয়েছে")
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
-  const handleSignup = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
+    setLoading(true)
     setError("")
     setSuccess("")
 
+    // Validation
+    if (registerData.password !== registerData.confirmPassword) {
+      setError("পাসওয়ার্ড মিলছে না")
+      setLoading(false)
+      return
+    }
+
+    if (registerData.password.length < 6) {
+      setError("পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে")
+      setLoading(false)
+      return
+    }
+
     try {
-      playSound("click")
-
-      // Validation
-      if (!signupData.name || !signupData.phone || !signupData.email || !signupData.password) {
-        throw new Error("সব তথ্য পূরণ করুন")
-      }
-
-      if (signupData.password !== signupData.confirmPassword) {
-        throw new Error("পাসওয়ার্ড মিলছে না")
-      }
-
-      if (signupData.password.length < 6) {
-        throw new Error("পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে")
-      }
-
-      const result = await authFunctions.signUp({
-        name: signupData.name,
-        phone: signupData.phone,
-        email: signupData.email,
-        password: signupData.password,
-        referralCode: signupData.referralCode || undefined,
+      const result = await signUp({
+        name: registerData.name,
+        phone: registerData.phone,
+        email: registerData.email,
+        password: registerData.password,
+        referralCode: registerData.referralCode,
       })
 
       if (result.success && result.user) {
-        playSound("success")
-        setSuccess("অ্যাকাউন্ট সফলভাবে তৈরি হয়েছে! স্বাগতম বোনাস পেয়েছেন!")
-
-        setTimeout(() => {
-          onAuthSuccess(result.user)
-        }, 2000)
+        setSuccess("রেজিস্ট্রেশন সফল হয়েছে! এখন লগইন করুন।")
+        // Reset form
+        setRegisterData({
+          name: "",
+          phone: "",
+          email: "",
+          password: "",
+          confirmPassword: "",
+          referralCode: "",
+        })
       } else {
-        playSound("error")
-        setError(result.error || "অ্যাকাউন্ট তৈরিতে সমস্যা হয়েছে")
+        setError(result.error || "রেজিস্ট্রেশন ব্যর্থ হয়েছে")
       }
-    } catch (error: any) {
-      playSound("error")
-      setError(error.message || "অ্যাকাউন্ট তৈরিতে সমস্যা হয়েছে")
+    } catch (error) {
+      setError("রেজিস্ট্রেশন করতে সমস্যা হয়েছে")
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
+  }
+
+  const fillDemoCredentials = () => {
+    setLoginData({
+      phone: "01700000000",
+      password: "password123",
+    })
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-xl">
+      <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
-            <Gift className="w-8 h-8 text-white" />
+          <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-red-700 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-2xl font-bold text-white">A</span>
           </div>
-          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            AMAC Investment
-          </CardTitle>
-          <CardDescription>আপনার বিনিয়োগ যাত্রা শুরু করুন</CardDescription>
+          <CardTitle className="text-2xl bengali-text">AMAC ইনভেস্টমেন্ট</CardTitle>
+          <p className="text-gray-600 bengali-text">আপনার বিনিয়োগ যাত্রা শুরু করুন</p>
         </CardHeader>
 
         <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">লগইন</TabsTrigger>
-              <TabsTrigger value="signup">সাইন আপ</TabsTrigger>
+              <TabsTrigger value="login" className="bengali-text">
+                লগইন
+              </TabsTrigger>
+              <TabsTrigger value="register" className="bengali-text">
+                রেজিস্ট্রেশন
+              </TabsTrigger>
             </TabsList>
 
             {/* Login Tab */}
-            <TabsContent value="login" className="space-y-4">
+            <TabsContent value="login">
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="login-phone">ফোন নম্বর</Label>
+                  <Label htmlFor="phone" className="bengali-text">
+                    ফোন নম্বর
+                  </Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
-                      id="login-phone"
+                      id="phone"
                       type="tel"
                       placeholder="01XXXXXXXXX"
                       value={loginData.phone}
@@ -170,47 +175,72 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="login-password">পাসওয়ার্ড</Label>
+                  <Label htmlFor="password" className="bengali-text">
+                    পাসওয়ার্ড
+                  </Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
-                      id="login-password"
+                      id="password"
                       type={showPassword ? "text" : "password"}
-                      placeholder="আপনার পাসওয়ার্ড"
+                      placeholder="পাসওয়ার্ড লিখুন"
                       value={loginData.password}
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                       className="pl-10 pr-10"
                       required
                     />
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-3 h-4 w-4 text-gray-400 hover:text-gray-600"
                     >
-                      {showPassword ? <EyeOff /> : <Eye />}
-                    </button>
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "লগইন হচ্ছে..." : "লগইন করুন"}
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription className="bengali-text">{error}</AlertDescription>
+                  </Alert>
+                )}
+
+                <Button type="submit" className="w-full bengali-text" disabled={loading}>
+                  {loading ? "লগইন হচ্ছে..." : "লগইন করুন"}
                 </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full bengali-text bg-transparent"
+                  onClick={fillDemoCredentials}
+                >
+                  ডেমো অ্যাকাউন্ট ব্যবহার করুন
+                </Button>
+
+                <div className="text-center text-sm text-gray-600 bengali-text">
+                  <p>ডেমো: 01700000000 / password123</p>
+                </div>
               </form>
             </TabsContent>
 
-            {/* Signup Tab */}
-            <TabsContent value="signup" className="space-y-4">
-              <form onSubmit={handleSignup} className="space-y-4">
+            {/* Register Tab */}
+            <TabsContent value="register">
+              <form onSubmit={handleRegister} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="signup-name">পূর্ণ নাম</Label>
+                  <Label htmlFor="name" className="bengali-text">
+                    পূর্ণ নাম
+                  </Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Users className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
-                      id="signup-name"
+                      id="name"
                       type="text"
-                      placeholder="আপনার পূর্ণ নাম"
-                      value={signupData.name}
-                      onChange={(e) => setSignupData({ ...signupData, name: e.target.value })}
+                      placeholder="আপনার নাম লিখুন"
+                      value={registerData.name}
+                      onChange={(e) => setRegisterData({ ...registerData, name: e.target.value })}
                       className="pl-10"
                       required
                     />
@@ -218,15 +248,17 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="signup-phone">ফোন নম্বর</Label>
+                  <Label htmlFor="reg-phone" className="bengali-text">
+                    ফোন নম্বর
+                  </Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
-                      id="signup-phone"
+                      id="reg-phone"
                       type="tel"
                       placeholder="01XXXXXXXXX"
-                      value={signupData.phone}
-                      onChange={(e) => setSignupData({ ...signupData, phone: e.target.value })}
+                      value={registerData.phone}
+                      onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
                       className="pl-10"
                       required
                     />
@@ -234,15 +266,17 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="signup-email">ইমেইল</Label>
+                  <Label htmlFor="email" className="bengali-text">
+                    ইমেইল
+                  </Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
-                      id="signup-email"
+                      id="email"
                       type="email"
                       placeholder="your@email.com"
-                      value={signupData.email}
-                      onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
+                      value={registerData.email}
+                      onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
                       className="pl-10"
                       required
                     />
@@ -250,39 +284,17 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="signup-password">পাসওয়ার্ড</Label>
+                  <Label htmlFor="reg-password" className="bengali-text">
+                    পাসওয়ার্ড
+                  </Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
-                      id="signup-password"
+                      id="reg-password"
                       type={showPassword ? "text" : "password"}
-                      placeholder="কমপক্ষে ৬ অক্ষর"
-                      value={signupData.password}
-                      onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
-                      className="pl-10 pr-10"
-                      required
-                      minLength={6}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-3 h-4 w-4 text-gray-400 hover:text-gray-600"
-                    >
-                      {showPassword ? <EyeOff /> : <Eye />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="signup-confirm-password">পাসওয়ার্ড নিশ্চিত করুন</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="signup-confirm-password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="পাসওয়ার্ড পুনরায় লিখুন"
-                      value={signupData.confirmPassword}
-                      onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })}
+                      placeholder="পাসওয়ার্ড লিখুন"
+                      value={registerData.password}
+                      onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
                       className="pl-10"
                       required
                     />
@@ -290,65 +302,58 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="signup-referral">রেফারেল কোড (ঐচ্ছিক)</Label>
+                  <Label htmlFor="confirm-password" className="bengali-text">
+                    পাসওয়ার্ড নিশ্চিত করুন
+                  </Label>
                   <div className="relative">
-                    <Gift className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
-                      id="signup-referral"
+                      id="confirm-password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="পাসওয়ার্ড আবার লিখুন"
+                      value={registerData.confirmPassword}
+                      onChange={(e) => setRegisterData({ ...registerData, confirmPassword: e.target.value })}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="referral" className="bengali-text">
+                    রেফারেল কোড (ঐচ্ছিক)
+                  </Label>
+                  <div className="relative">
+                    <Users className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="referral"
                       type="text"
-                      placeholder="রেফারেল কোড থাকলে লিখুন"
-                      value={signupData.referralCode}
-                      onChange={(e) => setSignupData({ ...signupData, referralCode: e.target.value.toUpperCase() })}
+                      placeholder="রেফারেল কোড লিখুন"
+                      value={registerData.referralCode}
+                      onChange={(e) => setRegisterData({ ...registerData, referralCode: e.target.value })}
                       className="pl-10"
                     />
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "অ্যাকাউন্ট তৈরি হচ্ছে..." : "অ্যাকাউন্ট তৈরি করুন"}
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription className="bengali-text">{error}</AlertDescription>
+                  </Alert>
+                )}
+
+                {success && (
+                  <Alert>
+                    <AlertDescription className="bengali-text text-green-600">{success}</AlertDescription>
+                  </Alert>
+                )}
+
+                <Button type="submit" className="w-full bengali-text" disabled={loading}>
+                  {loading ? "রেজিস্ট্রেশন হচ্ছে..." : "রেজিস্ট্রেশন করুন"}
                 </Button>
               </form>
             </TabsContent>
           </Tabs>
-
-          {/* Error Alert */}
-          {error && (
-            <Alert className="mt-4 border-red-200 bg-red-50">
-              <AlertCircle className="h-4 w-4 text-red-600" />
-              <AlertDescription className="text-red-800">{error}</AlertDescription>
-            </Alert>
-          )}
-
-          {/* Success Alert */}
-          {success && (
-            <Alert className="mt-4 border-green-200 bg-green-50">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800">{success}</AlertDescription>
-            </Alert>
-          )}
-
-          {/* Features */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <div className="text-center text-sm text-gray-600 mb-4">কেন AMAC বেছে নিবেন?</div>
-            <div className="grid grid-cols-2 gap-4 text-xs">
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span>দৈনিক রিটার্ন</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span>তাৎক্ষণিক উইথড্র</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                <span>রেফারেল বোনাস</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                <span>২৪/৭ সাপোর্ট</span>
-              </div>
-            </div>
-          </div>
         </CardContent>
       </Card>
     </div>

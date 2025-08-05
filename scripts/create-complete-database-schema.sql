@@ -4,158 +4,160 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
     phone VARCHAR(20) UNIQUE NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(100),
-    wallet_pin VARCHAR(6) NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    balance DECIMAL(15,2) DEFAULT 0,
-    bonus_balance DECIMAL(15,2) DEFAULT 0,
-    locked_balance DECIMAL(15,2) DEFAULT 0,
-    total_invested DECIMAL(15,2) DEFAULT 0,
-    total_earned DECIMAL(15,2) DEFAULT 0,
-    referral_code VARCHAR(10) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    balance DECIMAL(15,2) DEFAULT 0.00,
+    invested DECIMAL(15,2) DEFAULT 0.00,
+    earned DECIMAL(15,2) DEFAULT 0.00,
+    referral_code VARCHAR(20) UNIQUE NOT NULL,
     referred_by UUID REFERENCES users(id),
-    login_streak INTEGER DEFAULT 1,
-    last_login TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    kyc_status VARCHAR(20) DEFAULT 'pending' CHECK (kyc_status IN ('pending', 'approved', 'rejected')),
-    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'banned')),
-    role VARCHAR(20) DEFAULT 'user' CHECK (role IN ('user', 'admin')),
-    avatar TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    status VARCHAR(20) DEFAULT 'active',
+    last_login TIMESTAMP,
+    login_streak INTEGER DEFAULT 0,
+    last_bonus_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Investment packages table
 CREATE TABLE IF NOT EXISTS investment_packages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(100) NOT NULL,
-    name_bn VARCHAR(100) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    name_bn VARCHAR(255) NOT NULL,
     min_amount DECIMAL(15,2) NOT NULL,
     max_amount DECIMAL(15,2) NOT NULL,
-    daily_rate DECIMAL(5,2) NOT NULL,
-    total_days INTEGER NOT NULL,
-    total_return_rate DECIMAL(5,2) NOT NULL,
-    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
-    icon VARCHAR(50),
-    color VARCHAR(50),
-    features TEXT[],
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    daily_return DECIMAL(5,2) NOT NULL,
+    duration INTEGER NOT NULL,
+    total_return DECIMAL(5,2) NOT NULL,
+    is_popular BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Investments table
-CREATE TABLE IF NOT EXISTS investments (
+-- User investments table
+CREATE TABLE IF NOT EXISTS user_investments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     package_id UUID NOT NULL REFERENCES investment_packages(id),
     amount DECIMAL(15,2) NOT NULL,
     daily_return DECIMAL(15,2) NOT NULL,
     total_return DECIMAL(15,2) NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    status VARCHAR(20) DEFAULT 'active',
     days_completed INTEGER DEFAULT 0,
-    total_days INTEGER NOT NULL,
-    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'completed', 'cancelled')),
-    next_payment TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    last_return_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Transactions table
 CREATE TABLE IF NOT EXISTS transactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    type VARCHAR(20) NOT NULL CHECK (type IN ('deposit', 'withdraw', 'investment', 'return', 'bonus', 'referral')),
+    type VARCHAR(50) NOT NULL,
     amount DECIMAL(15,2) NOT NULL,
-    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed', 'cancelled')),
-    method VARCHAR(50),
-    account_number VARCHAR(100),
-    description TEXT NOT NULL,
-    reference VARCHAR(100),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    description TEXT,
+    description_bn TEXT,
+    status VARCHAR(20) DEFAULT 'pending',
+    reference_id UUID,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Withdrawal requests table
+CREATE TABLE IF NOT EXISTS withdrawal_requests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    amount DECIMAL(15,2) NOT NULL,
+    method VARCHAR(50) NOT NULL,
+    account_details JSONB NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    processed_at TIMESTAMP,
+    processed_by UUID REFERENCES users(id),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Tasks table
 CREATE TABLE IF NOT EXISTS tasks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    title VARCHAR(200) NOT NULL,
-    title_bn VARCHAR(200) NOT NULL,
-    description TEXT NOT NULL,
-    description_bn TEXT NOT NULL,
-    type VARCHAR(20) NOT NULL CHECK (type IN ('daily', 'video', 'survey', 'referral', 'social')),
+    title VARCHAR(255) NOT NULL,
+    title_bn VARCHAR(255) NOT NULL,
+    description TEXT,
+    description_bn TEXT,
+    type VARCHAR(50) NOT NULL,
     reward DECIMAL(15,2) NOT NULL,
-    requirement TEXT NOT NULL,
-    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
-    icon VARCHAR(50),
-    color VARCHAR(50),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    url TEXT,
+    requirements JSONB,
+    is_daily BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- User tasks table
 CREATE TABLE IF NOT EXISTS user_tasks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'claimed')),
-    progress INTEGER DEFAULT 0,
-    completed_at TIMESTAMP WITH TIME ZONE,
-    claimed_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    task_id UUID NOT NULL REFERENCES tasks(id),
+    status VARCHAR(20) DEFAULT 'pending',
+    completed_at TIMESTAMP,
+    reward_claimed BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, task_id)
-);
-
--- Spin wheels table
-CREATE TABLE IF NOT EXISTS spin_wheels (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    type VARCHAR(20) NOT NULL CHECK (type IN ('daily', 'premium', 'mega')),
-    prize_amount DECIMAL(15,2) NOT NULL,
-    prize_type VARCHAR(20) NOT NULL CHECK (prize_type IN ('cash', 'bonus', 'points')),
-    status VARCHAR(20) DEFAULT 'completed' CHECK (status IN ('completed')),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Events table
 CREATE TABLE IF NOT EXISTS events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    title VARCHAR(200) NOT NULL,
-    title_bn VARCHAR(200) NOT NULL,
-    description TEXT NOT NULL,
-    description_bn TEXT NOT NULL,
-    type VARCHAR(20) NOT NULL CHECK (type IN ('bonus', 'referral', 'task', 'investment')),
-    reward VARCHAR(100) NOT NULL,
-    start_date TIMESTAMP WITH TIME ZONE NOT NULL,
-    end_date TIMESTAMP WITH TIME ZONE NOT NULL,
-    status VARCHAR(20) DEFAULT 'upcoming' CHECK (status IN ('upcoming', 'active', 'completed')),
-    participants INTEGER DEFAULT 0,
+    title VARCHAR(255) NOT NULL,
+    title_bn VARCHAR(255) NOT NULL,
+    description TEXT,
+    description_bn TEXT,
+    type VARCHAR(50) NOT NULL,
+    reward DECIMAL(15,2),
+    start_date TIMESTAMP NOT NULL,
+    end_date TIMESTAMP NOT NULL,
     max_participants INTEGER,
-    banner_image TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    current_participants INTEGER DEFAULT 0,
+    requirements JSONB,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- User events table
+CREATE TABLE IF NOT EXISTS user_events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_id UUID NOT NULL REFERENCES events(id),
+    status VARCHAR(20) DEFAULT 'joined',
+    reward_claimed BOOLEAN DEFAULT FALSE,
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, event_id)
 );
 
 -- Gifts table
 CREATE TABLE IF NOT EXISTS gifts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    title VARCHAR(200) NOT NULL,
-    title_bn VARCHAR(200) NOT NULL,
-    description TEXT NOT NULL,
-    description_bn TEXT NOT NULL,
-    type VARCHAR(20) NOT NULL CHECK (type IN ('daily', 'premium', 'special')),
-    reward DECIMAL(15,2) NOT NULL,
-    requirement TEXT NOT NULL,
-    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
-    icon VARCHAR(50),
-    color VARCHAR(50),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    title VARCHAR(255) NOT NULL,
+    title_bn VARCHAR(255) NOT NULL,
+    description TEXT,
+    description_bn TEXT,
+    type VARCHAR(50) NOT NULL,
+    value DECIMAL(15,2) NOT NULL,
+    requirements JSONB,
+    is_daily BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- User gifts table
 CREATE TABLE IF NOT EXISTS user_gifts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    gift_id UUID NOT NULL REFERENCES gifts(id) ON DELETE CASCADE,
-    status VARCHAR(20) DEFAULT 'claimed' CHECK (status IN ('claimed')),
-    claimed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(user_id, gift_id)
+    gift_id UUID NOT NULL REFERENCES gifts(id),
+    status VARCHAR(20) DEFAULT 'claimed',
+    claimed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Referrals table
@@ -165,125 +167,152 @@ CREATE TABLE IF NOT EXISTS referrals (
     referred_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     level INTEGER NOT NULL DEFAULT 1,
     commission_rate DECIMAL(5,2) NOT NULL,
-    total_earned DECIMAL(15,2) DEFAULT 0,
-    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    total_earned DECIMAL(15,2) DEFAULT 0.00,
+    status VARCHAR(20) DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(referrer_id, referred_id)
 );
 
--- Banners table
-CREATE TABLE IF NOT EXISTS banners (
+-- Referral commissions table
+CREATE TABLE IF NOT EXISTS referral_commissions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    title VARCHAR(200) NOT NULL,
-    title_bn VARCHAR(200) NOT NULL,
+    referral_id UUID NOT NULL REFERENCES referrals(id) ON DELETE CASCADE,
+    transaction_id UUID NOT NULL REFERENCES transactions(id),
+    amount DECIMAL(15,2) NOT NULL,
+    commission DECIMAL(15,2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Products table
+CREATE TABLE IF NOT EXISTS products (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    name_bn VARCHAR(255) NOT NULL,
     description TEXT,
     description_bn TEXT,
-    image_url TEXT NOT NULL,
-    link_url TEXT,
-    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
-    order_index INTEGER DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    price DECIMAL(15,2) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    image_url TEXT,
+    stock INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Orders table
+CREATE TABLE IF NOT EXISTS orders (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    product_id UUID NOT NULL REFERENCES products(id),
+    quantity INTEGER NOT NULL DEFAULT 1,
+    total_amount DECIMAL(15,2) NOT NULL,
+    shipping_address JSONB NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    tracking_number VARCHAR(100),
+    shipped_at TIMESTAMP,
+    delivered_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Notifications table
 CREATE TABLE IF NOT EXISTS notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    title VARCHAR(200) NOT NULL,
-    title_bn VARCHAR(200) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    title_bn VARCHAR(255) NOT NULL,
     message TEXT NOT NULL,
     message_bn TEXT NOT NULL,
-    type VARCHAR(20) DEFAULT 'info' CHECK (type IN ('info', 'success', 'warning', 'error')),
-    read BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    type VARCHAR(50) NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    action_url TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Banners table
+CREATE TABLE IF NOT EXISTS banners (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title VARCHAR(255) NOT NULL,
+    title_bn VARCHAR(255) NOT NULL,
+    subtitle VARCHAR(255),
+    subtitle_bn VARCHAR(255),
+    image_url TEXT,
+    action_url TEXT,
+    color_scheme VARCHAR(100),
+    is_active BOOLEAN DEFAULT TRUE,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Spin wheel rewards table
+CREATE TABLE IF NOT EXISTS spin_rewards (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    name_bn VARCHAR(255) NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    value DECIMAL(15,2) NOT NULL,
+    probability DECIMAL(5,2) NOT NULL,
+    color VARCHAR(20) NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- User spins table
+CREATE TABLE IF NOT EXISTS user_spins (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    reward_id UUID NOT NULL REFERENCES spin_rewards(id),
+    spin_type VARCHAR(20) NOT NULL DEFAULT 'free',
+    reward_claimed BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Admin users table
+CREATE TABLE IF NOT EXISTS admin_users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    username VARCHAR(100) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL DEFAULT 'admin',
+    permissions JSONB,
+    is_active BOOLEAN DEFAULT TRUE,
+    last_login TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- System settings table
+CREATE TABLE IF NOT EXISTS system_settings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    key VARCHAR(100) UNIQUE NOT NULL,
+    value TEXT NOT NULL,
+    description TEXT,
+    type VARCHAR(50) DEFAULT 'string',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_referral_code ON users(referral_code);
-CREATE INDEX IF NOT EXISTS idx_investments_user_id ON investments(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_investments_user_id ON user_investments(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_investments_status ON user_investments(status);
 CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
 CREATE INDEX IF NOT EXISTS idx_user_tasks_user_id ON user_tasks(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_events_user_id ON user_events(user_id);
 CREATE INDEX IF NOT EXISTS idx_referrals_referrer_id ON referrals(referrer_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
 
--- Enable Row Level Security
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE investments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_tasks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE spin_wheels ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_gifts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE referrals ENABLE ROW LEVEL SECURITY;
-ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-
--- Create RLS policies (basic examples - adjust based on your auth system)
-CREATE POLICY "Users can view own data" ON users FOR SELECT USING (true);
-CREATE POLICY "Users can update own data" ON users FOR UPDATE USING (true);
-
-CREATE POLICY "Users can view own investments" ON investments FOR SELECT USING (true);
-CREATE POLICY "Users can view own transactions" ON transactions FOR SELECT USING (true);
-CREATE POLICY "Users can view own tasks" ON user_tasks FOR SELECT USING (true);
-CREATE POLICY "Users can view own spins" ON spin_wheels FOR SELECT USING (true);
-CREATE POLICY "Users can view own gifts" ON user_gifts FOR SELECT USING (true);
-CREATE POLICY "Users can view own referrals" ON referrals FOR SELECT USING (true);
-CREATE POLICY "Users can view own notifications" ON notifications FOR SELECT USING (true);
-
--- Create functions for common operations
-CREATE OR REPLACE FUNCTION add_referral_bonus(referrer_id UUID, referred_id UUID, bonus_amount DECIMAL)
-RETURNS VOID AS $$
+-- Create triggers for updated_at timestamps
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
 BEGIN
-    UPDATE users 
-    SET bonus_balance = bonus_balance + bonus_amount,
-        updated_at = NOW()
-    WHERE id = referrer_id;
-    
-    INSERT INTO transactions (user_id, type, amount, status, description)
-    VALUES (referrer_id, 'referral', bonus_amount, 'completed', 'Referral bonus');
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ language 'plpgsql';
 
--- Function to process daily returns
-CREATE OR REPLACE FUNCTION process_daily_returns()
-RETURNS VOID AS $$
-DECLARE
-    investment_record RECORD;
-BEGIN
-    FOR investment_record IN 
-        SELECT * FROM investments 
-        WHERE status = 'active' 
-        AND next_payment <= NOW()
-    LOOP
-        -- Add daily return to user balance
-        UPDATE users 
-        SET balance = balance + investment_record.daily_return,
-            total_earned = total_earned + investment_record.daily_return,
-            updated_at = NOW()
-        WHERE id = investment_record.user_id;
-        
-        -- Create transaction record
-        INSERT INTO transactions (user_id, type, amount, status, description)
-        VALUES (
-            investment_record.user_id, 
-            'return', 
-            investment_record.daily_return, 
-            'completed', 
-            'Daily investment return'
-        );
-        
-        -- Update investment
-        UPDATE investments 
-        SET days_completed = days_completed + 1,
-            next_payment = CASE 
-                WHEN days_completed + 1 >= total_days THEN NULL
-                ELSE next_payment + INTERVAL '1 day'
-            END,
-            status = CASE 
-                WHEN days_completed + 1 >= total_days THEN 'completed'
-                ELSE 'active'
-            END,
-            updated_at = NOW()
-        WHERE id = investment_record.id;
-    END LOOP;
-END;
-$$ LANGUAGE plpgsql;
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_system_settings_updated_at BEFORE UPDATE ON system_settings
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

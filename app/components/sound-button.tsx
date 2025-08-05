@@ -3,58 +3,42 @@
 import type React from "react"
 
 import { Button } from "@/components/ui/button"
-import { useSound } from "@/app/hooks/use-sound"
-import { Volume2, VolumeX } from "lucide-react"
-import { useState } from "react"
+import { useSound } from "../hooks/use-sound"
+import { cn } from "@/lib/utils"
 
 interface SoundButtonProps {
   children: React.ReactNode
-  soundType?: "click" | "success" | "error" | "notification" | "spin" | "reward"
+  soundType?: "click" | "success" | "error" | "notification" | "coinCollect" | "buttonClick" | "spin" | "bonus"
+  onClick?: () => void
   className?: string
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link"
   size?: "default" | "sm" | "lg" | "icon"
   disabled?: boolean
-  onClick?: () => void
 }
 
 export default function SoundButton({
   children,
-  soundType = "click",
+  soundType = "buttonClick",
+  onClick,
   className,
   variant = "default",
   size = "default",
   disabled = false,
-  onClick,
-  ...props
 }: SoundButtonProps) {
-  const { playSound, toggleSound, isEnabled } = useSound()
+  const { playSound, isEnabled } = useSound()
 
   const handleClick = () => {
-    if (!disabled) {
+    if (isEnabled && !disabled) {
       playSound(soundType)
-      onClick?.()
+    }
+    if (onClick) {
+      onClick()
     }
   }
 
   return (
-    <Button className={className} variant={variant} size={size} disabled={disabled} onClick={handleClick} {...props}>
+    <Button variant={variant} size={size} onClick={handleClick} disabled={disabled} className={cn(className)}>
       {children}
-    </Button>
-  )
-}
-
-export function SoundToggleButton() {
-  const { toggleSound, isEnabled } = useSound()
-  const [soundEnabled, setSoundEnabled] = useState(isEnabled)
-
-  const handleToggle = () => {
-    const newState = toggleSound()
-    setSoundEnabled(newState)
-  }
-
-  return (
-    <Button variant="ghost" size="icon" onClick={handleToggle} className="text-white hover:bg-white/20">
-      {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
     </Button>
   )
 }

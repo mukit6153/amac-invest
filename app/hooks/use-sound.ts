@@ -1,103 +1,95 @@
 "use client"
 
-import { useCallback, useRef, useEffect } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 
-interface SoundEffects {
-  click: string
-  success: string
-  error: string
-  notification: string
-  spin: string
-  reward: string
+interface SoundConfig {
+  frequency: number
+  duration: number
+  type: OscillatorType
+  volume: number
 }
 
-const soundUrls: SoundEffects = {
-  click:
-    "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT",
-  success:
-    "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT",
-  error:
-    "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT",
-  notification:
-    "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT",
-  spin: "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT",
-  reward:
-    "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT",
+const soundConfigs: Record<string, SoundConfig> = {
+  click: { frequency: 800, duration: 100, type: "sine", volume: 0.1 },
+  success: { frequency: 600, duration: 200, type: "sine", volume: 0.15 },
+  error: { frequency: 300, duration: 300, type: "sawtooth", volume: 0.1 },
+  notification: { frequency: 1000, duration: 150, type: "triangle", volume: 0.1 },
+  coinCollect: { frequency: 1200, duration: 200, type: "sine", volume: 0.12 },
+  buttonClick: { frequency: 700, duration: 80, type: "square", volume: 0.08 },
+  spin: { frequency: 400, duration: 500, type: "sine", volume: 0.1 },
+  bonus: { frequency: 800, duration: 300, type: "triangle", volume: 0.15 },
 }
 
 export function useSound() {
+  const [isEnabled, setIsEnabled] = useState(true)
   const audioContextRef = useRef<AudioContext | null>(null)
-  const audioBuffersRef = useRef<Map<string, AudioBuffer>>(new Map())
-  const isEnabledRef = useRef(true)
 
   useEffect(() => {
-    // Initialize audio context
-    const initAudioContext = async () => {
-      try {
+    // Initialize AudioContext on first user interaction
+    const initAudioContext = () => {
+      if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
-
-        // Preload all sound effects
-        for (const [key, url] of Object.entries(soundUrls)) {
-          try {
-            const response = await fetch(url)
-            const arrayBuffer = await response.arrayBuffer()
-            const audioBuffer = await audioContextRef.current!.decodeAudioData(arrayBuffer)
-            audioBuffersRef.current.set(key, audioBuffer)
-          } catch (error) {
-            console.warn(`Failed to load sound effect: ${key}`, error)
-          }
-        }
-      } catch (error) {
-        console.warn("Failed to initialize audio context:", error)
       }
     }
 
-    initAudioContext()
+    // Add event listeners for user interaction
+    const events = ["click", "touchstart", "keydown"]
+    events.forEach((event) => {
+      document.addEventListener(event, initAudioContext, { once: true })
+    })
 
     return () => {
-      if (audioContextRef.current) {
-        audioContextRef.current.close()
+      events.forEach((event) => {
+        document.removeEventListener(event, initAudioContext)
+      })
+    }
+  }, [])
+
+  const playSound = useCallback(
+    (soundType: keyof typeof soundConfigs) => {
+      if (!isEnabled || !audioContextRef.current) return
+
+      const config = soundConfigs[soundType]
+      if (!config) return
+
+      try {
+        const oscillator = audioContextRef.current.createOscillator()
+        const gainNode = audioContextRef.current.createGain()
+
+        oscillator.connect(gainNode)
+        gainNode.connect(audioContextRef.current.destination)
+
+        oscillator.frequency.setValueAtTime(config.frequency, audioContextRef.current.currentTime)
+        oscillator.type = config.type
+
+        gainNode.gain.setValueAtTime(0, audioContextRef.current.currentTime)
+        gainNode.gain.linearRampToValueAtTime(config.volume, audioContextRef.current.currentTime + 0.01)
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContextRef.current.currentTime + config.duration / 1000)
+
+        oscillator.start(audioContextRef.current.currentTime)
+        oscillator.stop(audioContextRef.current.currentTime + config.duration / 1000)
+      } catch (error) {
+        console.warn("Error playing sound:", error)
       }
-    }
-  }, [])
+    },
+    [isEnabled],
+  )
 
-  const playSound = useCallback((soundName: keyof SoundEffects, volume = 0.5) => {
-    if (!isEnabledRef.current || !audioContextRef.current || !audioBuffersRef.current.has(soundName)) {
-      return
-    }
-
-    try {
-      const audioBuffer = audioBuffersRef.current.get(soundName)
-      if (!audioBuffer) return
-
-      const source = audioContextRef.current.createBufferSource()
-      const gainNode = audioContextRef.current.createGain()
-
-      source.buffer = audioBuffer
-      gainNode.gain.value = Math.max(0, Math.min(1, volume))
-
-      source.connect(gainNode)
-      gainNode.connect(audioContextRef.current.destination)
-
-      source.start(0)
-    } catch (error) {
-      console.warn(`Failed to play sound: ${soundName}`, error)
-    }
-  }, [])
-
-  const toggleSound = useCallback(() => {
-    isEnabledRef.current = !isEnabledRef.current
-    return isEnabledRef.current
-  }, [])
-
-  const setSoundEnabled = useCallback((enabled: boolean) => {
-    isEnabledRef.current = enabled
-  }, [])
+  const sounds = {
+    click: () => playSound("click"),
+    success: () => playSound("success"),
+    error: () => playSound("error"),
+    notification: () => playSound("notification"),
+    coinCollect: () => playSound("coinCollect"),
+    buttonClick: () => playSound("buttonClick"),
+    spin: () => playSound("spin"),
+    bonus: () => playSound("bonus"),
+  }
 
   return {
+    sounds,
     playSound,
-    toggleSound,
-    setSoundEnabled,
-    isEnabled: isEnabledRef.current,
+    isEnabled,
+    setIsEnabled,
   }
 }

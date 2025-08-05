@@ -7,16 +7,33 @@ import { useSound } from "../hooks/use-sound"
 import { forwardRef } from "react"
 
 interface SoundButtonProps extends React.ComponentProps<typeof Button> {
-  soundType?: "buttonClick" | "success" | "error" | "notification"
+  soundType?: "click" | "success" | "error" | "notification"
 }
 
-export const SoundButton = forwardRef<HTMLButtonElement, SoundButtonProps>(
-  ({ onClick, soundType = "buttonClick", children, ...props }, ref) => {
+const SoundButton = forwardRef<HTMLButtonElement, SoundButtonProps>(
+  ({ onClick, soundType = "click", children, ...props }, ref) => {
     const { sounds } = useSound()
 
-    const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-      sounds[soundType]()
-      onClick?.(event)
+    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+      // Play sound based on type
+      switch (soundType) {
+        case "success":
+          sounds.success()
+          break
+        case "error":
+          sounds.error()
+          break
+        case "notification":
+          sounds.notification()
+          break
+        default:
+          sounds.buttonClick()
+      }
+
+      // Call original onClick if provided
+      if (onClick) {
+        onClick(e)
+      }
     }
 
     return (
@@ -28,3 +45,5 @@ export const SoundButton = forwardRef<HTMLButtonElement, SoundButtonProps>(
 )
 
 SoundButton.displayName = "SoundButton"
+
+export { SoundButton }

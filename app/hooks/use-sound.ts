@@ -9,7 +9,11 @@ interface SoundHook {
     error: () => void
     notification: () => void
     coinCollect: () => void
-    spinWheel: () => void
+    spinStart: () => void
+    spinTick: () => void
+    spinStop: () => void
+    rewardSmall: () => void
+    rewardBig: () => void
     levelUp: () => void
   }
   isEnabled: boolean
@@ -96,10 +100,24 @@ export function useSound(): SoundHook {
       setTimeout(() => playSound(1200, 0.1), 50)
       setTimeout(() => playSound(1500, 0.2), 100)
     },
-    spinWheel: () => {
-      for (let i = 0; i < 10; i++) {
-        setTimeout(() => playSound(400 + i * 50, 0.05), i * 50)
-      }
+    spinStart: () => {
+      playSound(400, 0.2)
+      setTimeout(() => playSound(500, 0.2), 100)
+    },
+    spinTick: () => playSound(600, 0.05),
+    spinStop: () => {
+      playSound(300, 0.3)
+      setTimeout(() => playSound(200, 0.2), 200)
+    },
+    rewardSmall: () => {
+      playSound(523, 0.15)
+      setTimeout(() => playSound(659, 0.15), 100)
+    },
+    rewardBig: () => {
+      playSound(523, 0.2)
+      setTimeout(() => playSound(659, 0.2), 100)
+      setTimeout(() => playSound(784, 0.2), 200)
+      setTimeout(() => playSound(1047, 0.4), 300)
     },
     levelUp: () => {
       const notes = [523, 587, 659, 698, 784, 880, 988]

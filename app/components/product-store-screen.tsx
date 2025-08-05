@@ -1,203 +1,214 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { SoundButton } from "./sound-button"
-import { useSound } from "../hooks/use-sound"
 import {
   ArrowLeft,
-  ShoppingBag,
-  Search,
-  Filter,
   Star,
   Heart,
+  Search,
+  Filter,
   ShoppingCart,
-  Smartphone,
-  Shirt,
-  Gift,
-  Zap,
   Package,
   Truck,
   Shield,
+  Award,
+  Gift,
+  Smartphone,
+  Laptop,
+  Watch,
+  Headphones,
 } from "lucide-react"
-import type { User } from "../lib/database"
+import { SoundButton } from "./sound-button"
+import { useSound } from "../hooks/use-sound"
 
 interface ProductStoreScreenProps {
-  user: User
+  user: any
   onBack: () => void
 }
 
-interface Product {
-  id: string
-  name: string
-  name_bn: string
-  description: string
-  description_bn: string
-  price: number
-  original_price: number
-  category: string
-  image: string
-  rating: number
-  reviews: number
-  in_stock: boolean
-  featured: boolean
-}
+// Mock products data
+const mockProducts = [
+  {
+    id: "1",
+    name: "iPhone 15 Pro",
+    name_bn: "আইফোন ১৫ প্রো",
+    description: "Latest iPhone with advanced features",
+    description_bn: "সর্বশেষ প্রযুক্তি সহ আইফোন",
+    price: 120000,
+    originalPrice: 140000,
+    category: "smartphone",
+    image: "/placeholder.svg?height=200&width=200&text=iPhone",
+    rating: 4.8,
+    reviews: 156,
+    inStock: true,
+    featured: true,
+  },
+  {
+    id: "2",
+    name: "MacBook Air M2",
+    name_bn: "ম্যাকবুক এয়ার এম২",
+    description: "Powerful laptop for professionals",
+    description_bn: "পেশাদারদের জন্য শক্তিশালী ল্যাপটপ",
+    price: 150000,
+    originalPrice: 170000,
+    category: "laptop",
+    image: "/placeholder.svg?height=200&width=200&text=MacBook",
+    rating: 4.9,
+    reviews: 89,
+    inStock: true,
+    featured: true,
+  },
+  {
+    id: "3",
+    name: "Apple Watch Series 9",
+    name_bn: "অ্যাপল ওয়াচ সিরিজ ৯",
+    description: "Advanced smartwatch with health features",
+    description_bn: "স্বাস্থ্য বৈশিষ্ট্য সহ স্মার্ট ওয়াচ",
+    price: 45000,
+    originalPrice: 50000,
+    category: "watch",
+    image: "/placeholder.svg?height=200&width=200&text=Watch",
+    rating: 4.7,
+    reviews: 234,
+    inStock: true,
+    featured: false,
+  },
+  {
+    id: "4",
+    name: "AirPods Pro",
+    name_bn: "এয়ারপডস প্রো",
+    description: "Premium wireless earbuds",
+    description_bn: "প্রিমিয়াম ওয়্যারলেস ইয়ারবাড",
+    price: 25000,
+    originalPrice: 28000,
+    category: "headphones",
+    image: "/placeholder.svg?height=200&width=200&text=AirPods",
+    rating: 4.6,
+    reviews: 445,
+    inStock: false,
+    featured: false,
+  },
+]
+
+const categories = [
+  { id: "all", name: "সব", name_en: "All", icon: Package },
+  { id: "smartphone", name: "ফোন", name_en: "Phone", icon: Smartphone },
+  { id: "laptop", name: "ল্যাপটপ", name_en: "Laptop", icon: Laptop },
+  { id: "watch", name: "ঘড়ি", name_en: "Watch", icon: Watch },
+  { id: "headphones", name: "হেডফোন", name_en: "Headphones", icon: Headphones },
+]
 
 export default function ProductStoreScreen({ user, onBack }: ProductStoreScreenProps) {
-  const [products, setProducts] = useState<Product[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
+  const [products, setProducts] = useState(mockProducts)
+  const [filteredProducts, setFilteredProducts] = useState(mockProducts)
   const [selectedCategory, setSelectedCategory] = useState("all")
+  const [searchQuery, setSearchQuery] = useState("")
   const [cart, setCart] = useState<string[]>([])
+  const [favorites, setFavorites] = useState<string[]>([])
+  const [loading, setLoading] = useState(false)
+
   const { sounds } = useSound()
 
   useEffect(() => {
-    loadProducts()
-  }, [])
+    filterProducts()
+  }, [selectedCategory, searchQuery])
 
-  const loadProducts = async () => {
-    // Mock products data
-    const mockProducts: Product[] = [
-      {
-        id: "1",
-        name: "Samsung Galaxy A54",
-        name_bn: "স্যামসাং গ্যালাক্সি A54",
-        description: "Latest Android smartphone with great camera",
-        description_bn: "সর্বশেষ অ্যান্ড্রয়েড স্মার্টফোন দুর্দান্ত ক্যামেরা সহ",
-        price: 35000,
-        original_price: 40000,
-        category: "electronics",
-        image: "/placeholder.svg?height=200&width=200&text=Samsung+A54",
-        rating: 4.5,
-        reviews: 128,
-        in_stock: true,
-        featured: true,
-      },
-      {
-        id: "2",
-        name: "Premium T-Shirt",
-        name_bn: "প্রিমিয়াম টি-শার্ট",
-        description: "Comfortable cotton t-shirt",
-        description_bn: "আরামদায়ক কটন টি-শার্ট",
-        price: 1200,
-        original_price: 1500,
-        category: "fashion",
-        image: "/placeholder.svg?height=200&width=200&text=T-Shirt",
-        rating: 4.2,
-        reviews: 45,
-        in_stock: true,
-        featured: false,
-      },
-      {
-        id: "3",
-        name: "Bkash Gift Card",
-        name_bn: "বিকাশ গিফট কার্ড",
-        description: "Digital gift card for mobile recharge",
-        description_bn: "মোবাইল রিচার্জের জন্য ডিজিটাল গিফট কার্ড",
-        price: 500,
-        original_price: 500,
-        category: "gift_cards",
-        image: "/placeholder.svg?height=200&width=200&text=Gift+Card",
-        rating: 5.0,
-        reviews: 89,
-        in_stock: true,
-        featured: true,
-      },
-      {
-        id: "4",
-        name: "Wireless Earbuds",
-        name_bn: "ওয়্যারলেস ইয়ারবাড",
-        description: "High quality wireless earbuds",
-        description_bn: "উচ্চ মানের ওয়্যারলেস ইয়ারবাড",
-        price: 2500,
-        original_price: 3000,
-        category: "electronics",
-        image: "/placeholder.svg?height=200&width=200&text=Earbuds",
-        rating: 4.3,
-        reviews: 67,
-        in_stock: true,
-        featured: false,
-      },
-    ]
-    setProducts(mockProducts)
+  const filterProducts = () => {
+    let filtered = products
+
+    if (selectedCategory !== "all") {
+      filtered = filtered.filter((product) => product.category === selectedCategory)
+    }
+
+    if (searchQuery) {
+      filtered = filtered.filter(
+        (product) =>
+          product.name_bn.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          product.name.toLowerCase().includes(searchQuery.toLowerCase()),
+      )
+    }
+
+    setFilteredProducts(filtered)
   }
 
-  const categories = [
-    { id: "all", name: "সব", name_bn: "সব", icon: Package },
-    { id: "electronics", name: "Electronics", name_bn: "ইলেকট্রনিক্স", icon: Smartphone },
-    { id: "fashion", name: "Fashion", name_bn: "ফ্যাশন", icon: Shirt },
-    { id: "gift_cards", name: "Gift Cards", name_bn: "গিফট কার্ড", icon: Gift },
-  ]
-
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch =
-      product.name_bn.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.name.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesCategory = selectedCategory === "all" || product.category === selectedCategory
-    return matchesSearch && matchesCategory
-  })
-
-  const addToCart = (productId: string) => {
+  const handleAddToCart = (productId: string) => {
     setCart((prev) => [...prev, productId])
     sounds.success()
+    alert("পণ্য কার্টে যোগ করা হয়েছে!")
   }
 
-  const removeFromCart = (productId: string) => {
-    setCart((prev) => prev.filter((id) => id !== productId))
+  const handleToggleFavorite = (productId: string) => {
+    setFavorites((prev) => (prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]))
     sounds.buttonClick()
   }
 
-  const isInCart = (productId: string) => cart.includes(productId)
+  const handlePurchase = async (product: any) => {
+    if (user.balance < product.price) {
+      sounds.error()
+      alert("অপর্যাপ্ত ব্যালেন্স")
+      return
+    }
+
+    setLoading(true)
+    try {
+      // Simulate purchase
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+      sounds.success()
+      alert(`${product.name_bn} সফলভাবে কেনা হয়েছে!`)
+    } catch (error) {
+      sounds.error()
+      alert("কেনাকাটায় সমস্যা হয়েছে")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getCategoryIcon = (categoryId: string) => {
+    const category = categories.find((cat) => cat.id === categoryId)
+    return category?.icon || Package
+  }
+
+  const featuredProducts = filteredProducts.filter((product) => product.featured)
+  const regularProducts = filteredProducts.filter((product) => !product.featured)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-cyan-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-50">
         <div className="max-w-md mx-auto px-4 py-3">
-          <div className="flex items-center gap-3">
-            <SoundButton variant="ghost" size="sm" onClick={onBack}>
-              <ArrowLeft className="h-5 w-5" />
-            </SoundButton>
-            <div className="flex items-center gap-2 flex-1">
-              <div className="w-8 h-8 bg-teal-500 rounded-full flex items-center justify-center">
-                <ShoppingBag className="h-4 w-4 text-white" />
-              </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <SoundButton variant="ghost" size="sm" onClick={onBack}>
+                <ArrowLeft className="h-5 w-5" />
+              </SoundButton>
               <div>
-                <h1 className="font-bold text-gray-800">পণ্যের দোকান</h1>
-                <p className="text-xs text-gray-600">ব্যালেন্স দিয়ে কিনুন</p>
+                <h1 className="font-bold text-gray-800 text-lg">প্রোডাক্ট স্টোর</h1>
+                <p className="text-xs text-gray-600">ওয়ালেট ব্যালেন্স দিয়ে কিনুন</p>
               </div>
             </div>
-            <div className="relative">
-              <SoundButton variant="ghost" size="sm">
+            <div className="flex items-center gap-2">
+              <div className="text-right">
+                <p className="text-sm font-medium text-green-600">৳{user.balance.toLocaleString()}</p>
+                <p className="text-xs text-gray-500">ব্যালেন্স</p>
+              </div>
+              <SoundButton variant="ghost" size="sm" className="relative">
                 <ShoppingCart className="h-5 w-5" />
+                {cart.length > 0 && (
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 text-xs p-0 flex items-center justify-center bg-red-500">
+                    {cart.length}
+                  </Badge>
+                )}
               </SoundButton>
-              {cart.length > 0 && (
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 text-xs p-0 bg-red-500">{cart.length}</Badge>
-              )}
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-md mx-auto p-4 space-y-4">
-        {/* Balance Card */}
-        <Card className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white border-0">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm opacity-90">কেনাকাটার ব্যালেন্স</p>
-                <p className="text-2xl font-bold">৳{user.balance.toLocaleString()}</p>
-                <p className="text-xs opacity-80">+ ৳{user.bonus_balance.toLocaleString()} বোনাস</p>
-              </div>
-              <div className="bg-white/20 rounded-full p-3">
-                <ShoppingBag className="h-6 w-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Search */}
+        {/* Search Bar */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
@@ -208,7 +219,7 @@ export default function ProductStoreScreen({ user, onBack }: ProductStoreScreenP
           />
         </div>
 
-        {/* Categories */}
+        {/* Category Filter */}
         <div className="flex gap-2 overflow-x-auto pb-2">
           {categories.map((category) => {
             const CategoryIcon = category.icon
@@ -217,209 +228,264 @@ export default function ProductStoreScreen({ user, onBack }: ProductStoreScreenP
                 key={category.id}
                 variant={selectedCategory === category.id ? "default" : "outline"}
                 size="sm"
+                className="flex-shrink-0 text-xs"
                 onClick={() => setSelectedCategory(category.id)}
-                className="flex-shrink-0 flex items-center gap-1"
               >
-                <CategoryIcon className="h-4 w-4" />
-                <span className="text-xs">{category.name_bn}</span>
+                <CategoryIcon className="h-3 w-3 mr-1" />
+                {category.name}
               </SoundButton>
             )
           })}
         </div>
 
+        {/* Store Features */}
+        <div className="grid grid-cols-3 gap-2">
+          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+            <CardContent className="p-3 text-center">
+              <Truck className="h-6 w-6 text-green-600 mx-auto mb-1" />
+              <p className="text-xs font-medium text-green-700">ফ্রি ডেলিভারি</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+            <CardContent className="p-3 text-center">
+              <Shield className="h-6 w-6 text-blue-600 mx-auto mb-1" />
+              <p className="text-xs font-medium text-blue-700">নিরাপদ পেমেন্ট</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+            <CardContent className="p-3 text-center">
+              <Award className="h-6 w-6 text-purple-600 mx-auto mb-1" />
+              <p className="text-xs font-medium text-purple-700">গ্যারান্টি</p>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Featured Products */}
-        {selectedCategory === "all" && (
-          <div className="space-y-3">
-            <h2 className="text-lg font-semibold bangla-text flex items-center gap-2">
-              <Star className="h-5 w-5 text-yellow-500" />
-              ফিচার্ড পণ্য
-            </h2>
-            <div className="grid grid-cols-2 gap-3">
-              {products
-                .filter((p) => p.featured)
-                .map((product) => (
-                  <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                    <div className="relative">
-                      <img
-                        src={product.image || "/placeholder.svg"}
-                        alt={product.name_bn}
-                        className="w-full h-32 object-cover"
-                      />
-                      <Badge className="absolute top-2 left-2 bg-red-500 text-xs">ফিচার্ড</Badge>
-                      <SoundButton
-                        variant="ghost"
-                        size="sm"
-                        className="absolute top-2 right-2 text-white hover:bg-white/20 p-1 h-8 w-8"
-                      >
-                        <Heart className="h-4 w-4" />
-                      </SoundButton>
-                    </div>
-                    <CardContent className="p-3">
-                      <h3 className="font-medium text-sm mb-1">{product.name_bn}</h3>
-                      <div className="flex items-center gap-1 mb-2">
-                        <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                        <span className="text-xs text-gray-600">
-                          {product.rating} ({product.reviews})
-                        </span>
+        {featuredProducts.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <Star className="h-5 w-5 text-yellow-500" />
+                ফিচার্ড প্রোডাক্ট
+              </h2>
+            </div>
+            <div className="grid gap-3">
+              {featuredProducts.map((product) => (
+                <Card key={product.id} className="bg-gradient-to-br from-yellow-50 to-orange-100 border-yellow-200">
+                  <CardContent className="p-4">
+                    <div className="flex gap-3">
+                      <div className="w-20 h-20 bg-white rounded-lg flex items-center justify-center">
+                        <img
+                          src={product.image || "/placeholder.svg"}
+                          alt={product.name_bn}
+                          className="w-16 h-16 object-cover rounded"
+                        />
                       </div>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-bold text-teal-600">৳{product.price.toLocaleString()}</p>
-                          {product.original_price > product.price && (
-                            <p className="text-xs text-gray-500 line-through">
-                              ৳{product.original_price.toLocaleString()}
-                            </p>
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h3 className="font-bold text-sm">{product.name_bn}</h3>
+                            <p className="text-xs text-gray-600">{product.description_bn}</p>
+                          </div>
+                          <SoundButton
+                            variant="ghost"
+                            size="sm"
+                            className="p-1"
+                            onClick={() => handleToggleFavorite(product.id)}
+                          >
+                            <Heart
+                              className={`h-4 w-4 ${
+                                favorites.includes(product.id) ? "fill-red-500 text-red-500" : "text-gray-400"
+                              }`}
+                            />
+                          </SoundButton>
+                        </div>
+
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center gap-1">
+                            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                            <span className="text-xs font-medium">{product.rating}</span>
+                          </div>
+                          <span className="text-xs text-gray-500">({product.reviews} রিভিউ)</span>
+                          {!product.inStock && (
+                            <Badge variant="destructive" className="text-xs">
+                              স্টক নেই
+                            </Badge>
                           )}
                         </div>
-                        <SoundButton
-                          size="sm"
-                          onClick={() => (isInCart(product.id) ? removeFromCart(product.id) : addToCart(product.id))}
-                          className={`text-xs px-2 ${isInCart(product.id) ? "bg-red-500 hover:bg-red-600" : ""}`}
-                        >
-                          {isInCart(product.id) ? "বাদ দিন" : "কার্টে"}
-                        </SoundButton>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-lg font-bold text-green-600">৳{product.price.toLocaleString()}</p>
+                            {product.originalPrice > product.price && (
+                              <p className="text-xs text-gray-500 line-through">
+                                ৳{product.originalPrice.toLocaleString()}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex gap-1">
+                            <SoundButton
+                              size="sm"
+                              variant="outline"
+                              className="text-xs px-2"
+                              onClick={() => handleAddToCart(product.id)}
+                              disabled={!product.inStock}
+                            >
+                              <ShoppingCart className="h-3 w-3" />
+                            </SoundButton>
+                            <SoundButton
+                              size="sm"
+                              className="text-xs px-2"
+                              onClick={() => handlePurchase(product)}
+                              disabled={!product.inStock || loading || user.balance < product.price}
+                            >
+                              কিনুন
+                            </SoundButton>
+                          </div>
+                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </div>
         )}
 
-        {/* All Products */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold bangla-text">
-              {selectedCategory === "all" ? "সব পণ্য" : categories.find((c) => c.id === selectedCategory)?.name_bn}
-            </h2>
-            <SoundButton variant="outline" size="sm">
-              <Filter className="h-4 w-4 mr-1" />
-              ফিল্টার
-            </SoundButton>
-          </div>
-
-          <div className="space-y-3">
-            {filteredProducts.map((product) => (
-              <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                <CardContent className="p-0">
-                  <div className="flex">
-                    <div className="relative w-24 h-24 flex-shrink-0">
-                      <img
-                        src={product.image || "/placeholder.svg"}
-                        alt={product.name_bn}
-                        className="w-full h-full object-cover"
-                      />
-                      {!product.in_stock && (
-                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                          <span className="text-white text-xs font-medium">স্টক নেই</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 p-3">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <h3 className="font-medium text-sm mb-1">{product.name_bn}</h3>
-                          <p className="text-xs text-gray-600 mb-2">{product.description_bn}</p>
-                          <div className="flex items-center gap-1 mb-2">
-                            <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                            <span className="text-xs text-gray-600">{product.rating}</span>
-                            <span className="text-xs text-gray-500">({product.reviews} রিভিউ)</span>
-                          </div>
-                        </div>
-                        <SoundButton variant="ghost" size="sm" className="p-1 h-8 w-8">
-                          <Heart className="h-4 w-4" />
-                        </SoundButton>
+        {/* Regular Products */}
+        {regularProducts.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <Package className="h-5 w-5 text-blue-500" />
+                সব প্রোডাক্ট
+              </h2>
+              <SoundButton variant="ghost" size="sm">
+                <Filter className="h-4 w-4" />
+              </SoundButton>
+            </div>
+            <div className="grid gap-3">
+              {regularProducts.map((product) => (
+                <Card key={product.id} className="bg-white">
+                  <CardContent className="p-4">
+                    <div className="flex gap-3">
+                      <div className="w-20 h-20 bg-gray-50 rounded-lg flex items-center justify-center">
+                        <img
+                          src={product.image || "/placeholder.svg"}
+                          alt={product.name_bn}
+                          className="w-16 h-16 object-cover rounded"
+                        />
                       </div>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-bold text-teal-600">৳{product.price.toLocaleString()}</p>
-                          {product.original_price > product.price && (
-                            <div className="flex items-center gap-2">
-                              <p className="text-xs text-gray-500 line-through">
-                                ৳{product.original_price.toLocaleString()}
-                              </p>
-                              <Badge variant="secondary" className="text-xs">
-                                {Math.round(((product.original_price - product.price) / product.original_price) * 100)}%
-                                ছাড়
-                              </Badge>
-                            </div>
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h3 className="font-bold text-sm">{product.name_bn}</h3>
+                            <p className="text-xs text-gray-600">{product.description_bn}</p>
+                          </div>
+                          <SoundButton
+                            variant="ghost"
+                            size="sm"
+                            className="p-1"
+                            onClick={() => handleToggleFavorite(product.id)}
+                          >
+                            <Heart
+                              className={`h-4 w-4 ${
+                                favorites.includes(product.id) ? "fill-red-500 text-red-500" : "text-gray-400"
+                              }`}
+                            />
+                          </SoundButton>
+                        </div>
+
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center gap-1">
+                            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                            <span className="text-xs font-medium">{product.rating}</span>
+                          </div>
+                          <span className="text-xs text-gray-500">({product.reviews} রিভিউ)</span>
+                          {!product.inStock && (
+                            <Badge variant="destructive" className="text-xs">
+                              স্টক নেই
+                            </Badge>
                           )}
                         </div>
-                        <SoundButton
-                          size="sm"
-                          onClick={() => (isInCart(product.id) ? removeFromCart(product.id) : addToCart(product.id))}
-                          disabled={!product.in_stock}
-                          className={`text-xs px-3 ${isInCart(product.id) ? "bg-red-500 hover:bg-red-600" : ""}`}
-                        >
-                          {!product.in_stock ? "স্টক নেই" : isInCart(product.id) ? "বাদ দিন" : "কার্টে যোগ করুন"}
-                        </SoundButton>
+
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-lg font-bold text-green-600">৳{product.price.toLocaleString()}</p>
+                            {product.originalPrice > product.price && (
+                              <p className="text-xs text-gray-500 line-through">
+                                ৳{product.originalPrice.toLocaleString()}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex gap-1">
+                            <SoundButton
+                              size="sm"
+                              variant="outline"
+                              className="text-xs px-2"
+                              onClick={() => handleAddToCart(product.id)}
+                              disabled={!product.inStock}
+                            >
+                              <ShoppingCart className="h-3 w-3" />
+                            </SoundButton>
+                            <SoundButton
+                              size="sm"
+                              className="text-xs px-2"
+                              onClick={() => handlePurchase(product)}
+                              disabled={!product.inStock || loading || user.balance < product.price}
+                            >
+                              কিনুন
+                            </SoundButton>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Store Info */}
-        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Shield className="h-4 w-4 text-blue-600" />
-              স্টোর তথ্য
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-start gap-2">
-              <Truck className="h-4 w-4 text-green-500 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium">ফ্রি ডেলিভারি</p>
-                <p className="text-xs text-gray-600">৫০০০ টাকার উপরে অর্ডারে</p>
+        {/* No Products Found */}
+        {filteredProducts.length === 0 && (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-600">কোন পণ্য পাওয়া যায়নি</p>
+              <SoundButton
+                variant="outline"
+                size="sm"
+                className="mt-3"
+                onClick={() => {
+                  setSearchQuery("")
+                  setSelectedCategory("all")
+                }}
+              >
+                ফিল্টার রিসেট করুন
+              </SoundButton>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Special Offer */}
+        <Card className="bg-gradient-to-r from-purple-500 to-pink-600 text-white border-0">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                <Gift className="h-6 w-6" />
               </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <Zap className="h-4 w-4 text-blue-500 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium">তাৎক্ষণিক ডেলিভারি</p>
-                <p className="text-xs text-gray-600">ডিজিটাল পণ্যের জন্য</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <Shield className="h-4 w-4 text-purple-500 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium">নিরাপদ পেমেন্ট</p>
-                <p className="text-xs text-gray-600">ওয়ালেট ব্যালেন্স দিয়ে</p>
+              <div className="flex-1">
+                <h3 className="font-bold mb-1">বিশেষ অফার!</h3>
+                <p className="text-sm opacity-90">৫০,০০০ টাকার বেশি কিনলে ১০% ছাড়!</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
+        {/* Bottom Spacer */}
         <div className="h-20"></div>
       </div>
-
-      {/* Cart Summary */}
-      {cart.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50">
-          <div className="max-w-md mx-auto p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">{cart.length} টি পণ্য কার্টে</p>
-                <p className="font-bold">
-                  মোট: ৳
-                  {cart
-                    .reduce((total, productId) => {
-                      const product = products.find((p) => p.id === productId)
-                      return total + (product?.price || 0)
-                    }, 0)
-                    .toLocaleString()}
-                </p>
-              </div>
-              <SoundButton className="px-6">অর্ডার করুন</SoundButton>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

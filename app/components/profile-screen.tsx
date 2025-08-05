@@ -1,366 +1,497 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { SoundButton } from "./sound-button"
-import { useSound } from "../hooks/use-sound"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   ArrowLeft,
   User,
   Phone,
+  Mail,
   Shield,
   Award,
   TrendingUp,
   Users,
+  Calendar,
   Edit,
   Camera,
-  Star,
-  Crown,
-  Flame,
   CheckCircle,
-  Settings,
+  Clock,
+  XCircle,
+  Flame,
+  Crown,
+  Star,
 } from "lucide-react"
-import type { User as UserType } from "../lib/database"
+import { SoundButton } from "./sound-button"
+import { useSound } from "../hooks/use-sound"
 
 interface ProfileScreenProps {
-  user: UserType
+  user: any
   onBack: () => void
 }
 
-export default function ProfileScreen({ user, onBack }: ProfileScreenProps) {
-  const [isEditing, setIsEditing] = useState(false)
-  const [editedName, setEditedName] = useState(user.name)
-  const [editedEmail, setEditedEmail] = useState(user.email || "")
+export default function ProfileScreen({ user: initialUser, onBack }: ProfileScreenProps) {
+  const [user, setUser] = useState(initialUser)
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(initialUser?.name || "")
+  const [email, setEmail] = useState(initialUser?.email || "")
+  const [loading, setLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState<"profile" | "stats" | "achievements">("profile")
+
   const { sounds } = useSound()
 
-  const handleSave = () => {
-    // Save profile changes
-    sounds.success()
-    setIsEditing(false)
+  useEffect(() => {
+    if (initialUser) {
+      setUser(initialUser)
+      setName(initialUser.name)
+      setEmail(initialUser.email || "")
+    }
+  }, [initialUser])
+
+  const handleSaveProfile = async () => {
+    setLoading(true)
+    try {
+      // In a real app, you would call an update function
+      // For now, we'll just update the local state
+      const updatedUser = { ...user, name, email }
+      setUser(updatedUser)
+      localStorage.setItem("user", JSON.stringify(updatedUser))
+      setEditing(false)
+      sounds.success()
+      alert("প্রোফাইল আপডেট হয়েছে!")
+    } catch (error) {
+      sounds.error()
+      alert("প্রোফাইল আপডেট করতে সমস্যা হয়েছে")
+    } finally {
+      setLoading(false)
+    }
   }
 
   const getKycStatusColor = (status: string) => {
     switch (status) {
       case "approved":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-700"
       case "pending":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-700"
       case "rejected":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-700"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-700"
     }
   }
 
   const getKycStatusText = (status: string) => {
     switch (status) {
       case "approved":
-        return "যাচাইকৃত"
+        return "অনুমোদিত"
       case "pending":
         return "অপেক্ষমাণ"
       case "rejected":
         return "প্রত্যাখ্যাত"
       default:
-        return "অযাচাইকৃত"
+        return "অজানা"
     }
   }
 
+  const getKycStatusIcon = (status: string) => {
+    switch (status) {
+      case "approved":
+        return <CheckCircle className="h-4 w-4" />
+      case "pending":
+        return <Clock className="h-4 w-4" />
+      case "rejected":
+        return <XCircle className="h-4 w-4" />
+      default:
+        return <Shield className="h-4 w-4" />
+    }
+  }
+
+  const getUserLevel = (totalInvested: number) => {
+    if (totalInvested >= 100000) return { level: "VIP", icon: Crown, color: "text-yellow-600" }
+    if (totalInvested >= 50000) return { level: "Premium", icon: Star, color: "text-purple-600" }
+    if (totalInvested >= 10000) return { level: "Gold", icon: Award, color: "text-orange-600" }
+    return { level: "Silver", icon: User, color: "text-gray-600" }
+  }
+
+  const userLevel = getUserLevel(user?.total_invested || 0)
+  const LevelIcon = userLevel.icon
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-50">
         <div className="max-w-md mx-auto px-4 py-3">
-          <div className="flex items-center gap-3">
-            <SoundButton variant="ghost" size="sm" onClick={onBack}>
-              <ArrowLeft className="h-5 w-5" />
-            </SoundButton>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
-                <User className="h-4 w-4 text-white" />
-              </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <SoundButton variant="ghost" size="sm" onClick={onBack}>
+                <ArrowLeft className="h-5 w-5" />
+              </SoundButton>
               <div>
-                <h1 className="font-bold text-gray-800">প্রোফাইল</h1>
+                <h1 className="font-bold text-gray-800 text-lg">প্রোফাইল</h1>
                 <p className="text-xs text-gray-600">আপনার তথ্য দেখুন ও সম্পাদনা করুন</p>
               </div>
             </div>
+            <SoundButton variant="ghost" size="sm" onClick={() => setEditing(!editing)}>
+              <Edit className="h-4 w-4" />
+            </SoundButton>
           </div>
         </div>
       </div>
 
       <div className="max-w-md mx-auto p-4 space-y-4">
         {/* Profile Header */}
-        <Card className="bg-gradient-to-r from-purple-500 to-pink-600 text-white border-0">
-          <CardContent className="p-6 text-center">
-            <div className="relative inline-block mb-4">
-              <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto">
-                {user.avatar ? (
-                  <img
-                    src={user.avatar || "/placeholder.svg"}
-                    alt="Profile"
-                    className="w-20 h-20 rounded-full object-cover"
-                  />
-                ) : (
-                  <User className="h-10 w-10" />
-                )}
-              </div>
-              <SoundButton
-                size="sm"
-                className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 p-0"
-              >
-                <Camera className="h-4 w-4" />
-              </SoundButton>
-            </div>
-            <h2 className="text-xl font-bold mb-1">{user.name}</h2>
-            <p className="text-sm opacity-90 mb-3">{user.phone}</p>
-            <div className="flex items-center justify-center gap-2">
-              <Badge className={`text-xs ${getKycStatusColor(user.kyc_status)}`}>
-                <Shield className="h-3 w-3 mr-1" />
-                {getKycStatusText(user.kyc_status)}
-              </Badge>
-              {user.role === "admin" && (
-                <Badge className="text-xs bg-yellow-100 text-yellow-800">
-                  <Crown className="h-3 w-3 mr-1" />
-                  অ্যাডমিন
-                </Badge>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 gap-3">
-          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0">
-            <CardContent className="p-4 text-center">
-              <TrendingUp className="h-8 w-8 mx-auto mb-2 opacity-80" />
-              <p className="text-2xl font-bold">৳{user.total_invested.toLocaleString()}</p>
-              <p className="text-xs opacity-90">মোট বিনিয়োগ</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0">
-            <CardContent className="p-4 text-center">
-              <Award className="h-8 w-8 mx-auto mb-2 opacity-80" />
-              <p className="text-2xl font-bold">৳{user.total_earned.toLocaleString()}</p>
-              <p className="text-xs opacity-90">মোট আয়</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0">
-            <CardContent className="p-4 text-center">
-              <Users className="h-8 w-8 mx-auto mb-2 opacity-80" />
-              <p className="text-2xl font-bold">0</p>
-              <p className="text-xs opacity-90">রেফারেল</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white border-0">
-            <CardContent className="p-4 text-center">
-              <Flame className="h-8 w-8 mx-auto mb-2 opacity-80" />
-              <p className="text-2xl font-bold">{user.login_streak}</p>
-              <p className="text-xs opacity-90">লগইন স্ট্রিক</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Personal Information */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <User className="h-4 w-4 text-purple-600" />
-                ব্যক্তিগত তথ্য
-              </CardTitle>
-              <SoundButton
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setIsEditing(!isEditing)
-                  sounds.buttonClick()
-                }}
-              >
-                <Edit className="h-4 w-4" />
-              </SoundButton>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label className="text-sm font-medium">নাম</Label>
-              {isEditing ? (
-                <Input value={editedName} onChange={(e) => setEditedName(e.target.value)} className="mt-1" />
-              ) : (
-                <p className="mt-1 text-sm text-gray-700">{user.name}</p>
-              )}
-            </div>
-
-            <div>
-              <Label className="text-sm font-medium">ফোন নম্বর</Label>
-              <p className="mt-1 text-sm text-gray-700">{user.phone}</p>
-            </div>
-
-            <div>
-              <Label className="text-sm font-medium">ইমেইল</Label>
-              {isEditing ? (
-                <Input
-                  type="email"
-                  value={editedEmail}
-                  onChange={(e) => setEditedEmail(e.target.value)}
-                  className="mt-1"
-                  placeholder="আপনার ইমেইল"
-                />
-              ) : (
-                <p className="mt-1 text-sm text-gray-700">{user.email || "ইমেইল যোগ করুন"}</p>
-              )}
-            </div>
-
-            <div>
-              <Label className="text-sm font-medium">যোগদানের তারিখ</Label>
-              <p className="mt-1 text-sm text-gray-700">{new Date(user.created_at).toLocaleDateString("bn-BD")}</p>
-            </div>
-
-            {isEditing && (
-              <div className="flex gap-2 pt-2">
-                <SoundButton onClick={handleSave} className="flex-1">
-                  সংরক্ষণ করুন
-                </SoundButton>
+        <Card className="bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <Avatar className="w-20 h-20 border-4 border-white/20">
+                  <AvatarImage src={user?.avatar || "/placeholder.svg"} />
+                  <AvatarFallback className="bg-white/20 text-white text-xl font-bold">
+                    {user?.name?.charAt(0)?.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
                 <SoundButton
-                  variant="outline"
-                  onClick={() => {
-                    setIsEditing(false)
-                    setEditedName(user.name)
-                    setEditedEmail(user.email || "")
-                    sounds.buttonClick()
-                  }}
-                  className="flex-1"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white p-0"
                 >
-                  বাতিল
+                  <Camera className="h-4 w-4" />
                 </SoundButton>
               </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Account Status */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Shield className="h-4 w-4 text-green-600" />
-              অ্যাকাউন্ট স্ট্যাটাস
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm">KYC যাচাইকরণ</span>
-              <Badge className={getKycStatusColor(user.kyc_status)}>{getKycStatusText(user.kyc_status)}</Badge>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-sm">অ্যাকাউন্ট স্ট্যাটাস</span>
-              <Badge className={user.status === "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
-                {user.status === "active" ? "সক্রিয়" : "নিষ্ক্রিয়"}
-              </Badge>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-sm">সর্বশেষ লগইন</span>
-              <span className="text-sm text-gray-600">{new Date(user.last_login).toLocaleDateString("bn-BD")}</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Referral Code */}
-        <Card className="bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Users className="h-4 w-4 text-indigo-600" />
-              রেফারেল কোড
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
-              <div>
-                <p className="text-sm text-gray-600">আপনার রেফারেল কোড</p>
-                <p className="text-lg font-bold font-mono text-indigo-600">{user.referral_code}</p>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold mb-1">{user?.name}</h2>
+                <p className="text-sm opacity-80 mb-2">{user?.phone}</p>
+                <div className="flex items-center gap-2">
+                  <Badge className={`text-xs ${userLevel.color} bg-white/20`}>
+                    <LevelIcon className="h-3 w-3 mr-1" />
+                    {userLevel.level}
+                  </Badge>
+                  <Badge className="text-xs bg-white/20">
+                    <Flame className="h-3 w-3 mr-1" />
+                    {user?.login_streak} দিন
+                  </Badge>
+                </div>
               </div>
-              <SoundButton size="sm" variant="outline">
-                কপি করুন
-              </SoundButton>
             </div>
           </CardContent>
         </Card>
 
-        {/* Achievements */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Star className="h-4 w-4 text-yellow-600" />
-              অর্জনসমূহ
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+        {/* Tab Navigation */}
+        <div className="flex bg-white rounded-lg p-1 shadow-sm">
+          <SoundButton
+            variant={activeTab === "profile" ? "default" : "ghost"}
+            size="sm"
+            className="flex-1 text-xs"
+            onClick={() => setActiveTab("profile")}
+          >
+            তথ্য
+          </SoundButton>
+          <SoundButton
+            variant={activeTab === "stats" ? "default" : "ghost"}
+            size="sm"
+            className="flex-1 text-xs"
+            onClick={() => setActiveTab("stats")}
+          >
+            পরিসংখ্যান
+          </SoundButton>
+          <SoundButton
+            variant={activeTab === "achievements" ? "default" : "ghost"}
+            size="sm"
+            className="flex-1 text-xs"
+            onClick={() => setActiveTab("achievements")}
+          >
+            অর্জন
+          </SoundButton>
+        </div>
+
+        {/* Profile Tab */}
+        {activeTab === "profile" && (
+          <div className="space-y-4">
+            {/* Personal Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <User className="h-5 w-5 text-blue-600" />
+                  ব্যক্তিগত তথ্য
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">নাম</label>
+                  {editing ? (
+                    <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="আপনার নাম" />
+                  ) : (
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <p className="font-medium">{user?.name}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">ফোন নম্বর</label>
+                  <div className="p-3 bg-gray-50 rounded-lg flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-gray-500" />
+                    <p className="font-medium">{user?.phone}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">ইমেইল</label>
+                  {editing ? (
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="আপনার ইমেইল"
+                    />
+                  ) : (
+                    <div className="p-3 bg-gray-50 rounded-lg flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-gray-500" />
+                      <p className="font-medium">{user?.email || "ইমেইল যোগ করুন"}</p>
+                    </div>
+                  )}
+                </div>
+
+                {editing && (
+                  <div className="flex gap-2">
+                    <SoundButton className="flex-1" onClick={handleSaveProfile} disabled={loading}>
+                      {loading ? "সংরক্ষণ..." : "সংরক্ষণ করুন"}
+                    </SoundButton>
+                    <SoundButton
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        setEditing(false)
+                        setName(user?.name || "")
+                        setEmail(user?.email || "")
+                      }}
+                    >
+                      বাতিল
+                    </SoundButton>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Account Status */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-green-600" />
+                  অ্যাকাউন্ট স্ট্যাটাস
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">KYC স্ট্যাটাস</span>
+                  <Badge className={`text-xs ${getKycStatusColor(user?.kyc_status)}`}>
+                    {getKycStatusIcon(user?.kyc_status)}
+                    <span className="ml-1">{getKycStatusText(user?.kyc_status)}</span>
+                  </Badge>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">অ্যাকাউন্ট স্ট্যাটাস</span>
+                  <Badge variant={user?.status === "active" ? "default" : "destructive"} className="text-xs">
+                    {user?.status === "active" ? "সক্রিয়" : "নিষ্ক্রিয়"}
+                  </Badge>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">সদস্য হওয়ার তারিখ</span>
+                  <span className="text-sm font-medium">
+                    {user?.created_at && new Date(user.created_at).toLocaleDateString("bn-BD")}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">রেফারেল কোড</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-mono font-bold">{user?.referral_code}</span>
+                    <SoundButton variant="outline" size="sm" className="text-xs px-2 py-1">
+                      কপি
+                    </SoundButton>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Stats Tab */}
+        {activeTab === "stats" && (
+          <div className="space-y-4">
+            {/* Balance Stats */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                <Star className="h-6 w-6 text-yellow-500 mx-auto mb-1" />
-                <p className="text-xs font-medium">প্রথম বিনিয়োগ</p>
-                <CheckCircle className="h-4 w-4 text-green-500 mx-auto mt-1" />
-              </div>
+              <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0">
+                <CardContent className="p-4 text-center">
+                  <TrendingUp className="h-8 w-8 mx-auto mb-2 opacity-80" />
+                  <div className="text-xl font-bold">৳{user?.balance?.toLocaleString()}</div>
+                  <p className="text-xs opacity-80">মূল ব্যালেন্স</p>
+                </CardContent>
+              </Card>
 
-              <div className="text-center p-3 bg-blue-50 rounded-lg">
-                <Flame className="h-6 w-6 text-orange-500 mx-auto mb-1" />
-                <p className="text-xs font-medium">৭ দিন স্ট্রিক</p>
-                {user.login_streak >= 7 ? (
-                  <CheckCircle className="h-4 w-4 text-green-500 mx-auto mt-1" />
-                ) : (
-                  <div className="text-xs text-gray-500 mt-1">{7 - user.login_streak} দিন বাকি</div>
-                )}
-              </div>
-
-              <div className="text-center p-3 bg-green-50 rounded-lg">
-                <Award className="h-6 w-6 text-green-500 mx-auto mb-1" />
-                <p className="text-xs font-medium">১০০০ টাকা আয়</p>
-                {user.total_earned >= 1000 ? (
-                  <CheckCircle className="h-4 w-4 text-green-500 mx-auto mt-1" />
-                ) : (
-                  <div className="text-xs text-gray-500 mt-1">৳{1000 - user.total_earned} বাকি</div>
-                )}
-              </div>
-
-              <div className="text-center p-3 bg-purple-50 rounded-lg">
-                <Users className="h-6 w-6 text-purple-500 mx-auto mb-1" />
-                <p className="text-xs font-medium">৫ রেফারেল</p>
-                <div className="text-xs text-gray-500 mt-1">৫টি বাকি</div>
-              </div>
+              <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white border-0">
+                <CardContent className="p-4 text-center">
+                  <Award className="h-8 w-8 mx-auto mb-2 opacity-80" />
+                  <div className="text-xl font-bold">৳{user?.bonus_balance?.toLocaleString()}</div>
+                  <p className="text-xs opacity-80">বোনাস ব্যালেন্স</p>
+                </CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">দ্রুত কাজ</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <SoundButton variant="outline" className="w-full justify-start" size="sm">
-              <Settings className="h-4 w-4 mr-2" />
-              সেটিংস
-            </SoundButton>
+            {/* Investment Stats */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-blue-600" />
+                  বিনিয়োগ পরিসংখ্যান
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">মোট বিনিয়োগ</span>
+                  <span className="text-lg font-bold text-blue-600">৳{user?.total_invested?.toLocaleString()}</span>
+                </div>
 
-            <SoundButton variant="outline" className="w-full justify-start" size="sm">
-              <Shield className="h-4 w-4 mr-2" />
-              KYC যাচাইকরণ
-            </SoundButton>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">মোট আয়</span>
+                  <span className="text-lg font-bold text-green-600">৳{user?.total_earned?.toLocaleString()}</span>
+                </div>
 
-            <SoundButton variant="outline" className="w-full justify-start" size="sm">
-              <Phone className="h-4 w-4 mr-2" />
-              সাপোর্ট
-            </SoundButton>
-          </CardContent>
-        </Card>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">লক করা ব্যালেন্স</span>
+                  <span className="text-lg font-bold text-orange-600">৳{user?.locked_balance?.toLocaleString()}</span>
+                </div>
+              </CardContent>
+            </Card>
 
+            {/* Activity Stats */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-purple-600" />
+                  কার্যকলাপ পরিসংখ্যান
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">লগইন স্ট্রিক</span>
+                  <div className="flex items-center gap-1">
+                    <Flame className="h-4 w-4 text-orange-500" />
+                    <span className="text-lg font-bold text-orange-600">{user?.login_streak} দিন</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">শেষ লগইন</span>
+                  <span className="text-sm font-medium">
+                    {user?.last_login && new Date(user.last_login).toLocaleDateString("bn-BD")}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">ব্যবহারকারীর স্তর</span>
+                  <Badge className={`text-xs ${userLevel.color}`}>
+                    <LevelIcon className="h-3 w-3 mr-1" />
+                    {userLevel.level}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Achievements Tab */}
+        {activeTab === "achievements" && (
+          <div className="space-y-4">
+            {/* Level Progress */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Crown className="h-5 w-5 text-yellow-600" />
+                  স্তর অগ্রগতি
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center mb-4">
+                  <div className="w-20 h-20 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <LevelIcon className="h-10 w-10 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold">{userLevel.level}</h3>
+                  <p className="text-sm text-gray-600">বর্তমান স্তর</p>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>পরবর্তী স্তরের জন্য</span>
+                    <span>৳{(50000 - (user?.total_invested || 0)).toLocaleString()} বাকি</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-gradient-to-r from-yellow-400 to-yellow-600 h-2 rounded-full"
+                      style={{ width: `${Math.min(((user?.total_invested || 0) / 50000) * 100, 100)}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Achievements List */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Award className="h-5 w-5 text-blue-600" />
+                  অর্জনসমূহ
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
+                  <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                    <CheckCircle className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-medium">প্রথম বিনিয়োগ</h4>
+                    <p className="text-xs text-gray-600">আপনার প্রথম বিনিয়োগ সম্পন্ন করেছেন</p>
+                  </div>
+                  <Badge variant="default" className="text-xs">
+                    সম্পন্ন
+                  </Badge>
+                </div>
+
+                <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                  <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                    <Users className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-medium">রেফারেল মাস্টার</h4>
+                    <p className="text-xs text-gray-600">৫ জন বন্ধুকে রেফার করেছেন</p>
+                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    অগ্রগতিতে
+                  </Badge>
+                </div>
+
+                <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg">
+                  <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center">
+                    <Flame className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-medium">দৈনিক চ্যাম্পিয়ন</h4>
+                    <p className="text-xs text-gray-600">৭ দিন ধারাবাহিক লগইন</p>
+                  </div>
+                  <Badge variant={user?.login_streak >= 7 ? "default" : "secondary"} className="text-xs">
+                    {user?.login_streak >= 7 ? "সম্পন্ন" : "অগ্রগতিতে"}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Bottom Spacer */}
         <div className="h-20"></div>
       </div>
     </div>

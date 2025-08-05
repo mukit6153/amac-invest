@@ -1,22 +1,37 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import {
+  ArrowLeft,
+  CheckCircle,
+  Clock,
+  Target,
+  Award,
+  Users,
+  Video,
+  FileText,
+  Share2,
+  Calendar,
+  Gift,
+  Star,
+} from "lucide-react"
 import { SoundButton } from "./sound-button"
 import { useSound } from "../hooks/use-sound"
-import { ArrowLeft, CheckCircle, Clock, Award, Play, Users, Eye, Share2, Star, Gift, Target } from "lucide-react"
-import { dataFunctions, actionFunctions, type User, type Task } from "../lib/database"
+import { dataFunctions, actionFunctions, type Task, type UserTask } from "../lib/database"
 
 interface TasksScreenProps {
-  user: User
+  user: any
   onBack: () => void
 }
 
 export default function TasksScreen({ user, onBack }: TasksScreenProps) {
   const [tasks, setTasks] = useState<Task[]>([])
-  const [completedTasks, setCompletedTasks] = useState<string[]>([])
+  const [userTasks, setUserTasks] = useState<UserTask[]>([])
   const [loading, setLoading] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<"available" | "completed">("available")
+
   const { sounds } = useSound()
 
   useEffect(() => {
@@ -25,34 +40,32 @@ export default function TasksScreen({ user, onBack }: TasksScreenProps) {
 
   const loadTasks = async () => {
     try {
-      const tasksData = await dataFunctions.getActiveTasks()
+      const [tasksData, userTasksData] = await Promise.all([
+        dataFunctions.getActiveTasks(),
+        dataFunctions.getUserTasks(user.id),
+      ])
       setTasks(tasksData)
-
-      // Load user's completed tasks
-      const userTasks = await dataFunctions.getUserTasks(user.id)
-      const completed = userTasks.filter((ut) => ut.status === "completed").map((ut) => ut.task_id)
-      setCompletedTasks(completed)
+      setUserTasks(userTasksData)
     } catch (error) {
       console.error("Error loading tasks:", error)
     }
   }
 
   const handleCompleteTask = async (taskId: string) => {
-    if (completedTasks.includes(taskId)) return
-
     setLoading(taskId)
     try {
       const result = await actionFunctions.completeTask(user.id, taskId)
       if (result.success) {
         sounds.success()
-        setCompletedTasks((prev) => [...prev, taskId])
-        // Show success message
+        alert(`টাস্ক সম্পন্ন! আপনি ৳${result.reward} পুরস্কার পেয়েছেন!`)
+        loadTasks()
       } else {
         sounds.error()
+        alert(result.error || "টাস্ক সম্পন্ন করতে সমস্যা হয়েছে")
       }
     } catch (error) {
-      console.error("Task completion error:", error)
       sounds.error()
+      alert("টাস্ক সম্পন্ন করতে সমস্যা হয়েছে")
     } finally {
       setLoading(null)
     }
@@ -60,340 +73,264 @@ export default function TasksScreen({ user, onBack }: TasksScreenProps) {
 
   const getTaskIcon = (type: string) => {
     switch (type) {
+      case "daily":
+        return Calendar
       case "video":
-        return Play
+        return Video
+      case "survey":
+        return FileText
       case "referral":
         return Users
       case "social":
         return Share2
-      case "survey":
-        return Eye
       default:
-        return CheckCircle
+        return Target
     }
   }
 
-  const getTaskColor = (type: string) => {
+  const getTaskTypeText = (type: string) => {
     switch (type) {
+      case "daily":
+        return "দৈনিক"
       case "video":
-        return "bg-red-500"
-      case "referral":
-        return "bg-purple-500"
-      case "social":
-        return "bg-blue-500"
+        return "ভিডিও"
       case "survey":
-        return "bg-green-500"
+        return "সার্ভে"
+      case "referral":
+        return "রেফারেল"
+      case "social":
+        return "সোশ্যাল"
       default:
-        return "bg-orange-500"
+        return "সাধারণ"
     }
   }
 
-  const dailyTasks = tasks.filter((t) => t.type === "daily")
-  const videoTasks = tasks.filter((t) => t.type === "video")
-  const socialTasks = tasks.filter((t) => t.type === "social")
-  const referralTasks = tasks.filter((t) => t.type === "referral")
+  const isTaskCompleted = (taskId: string) => {
+    return userTasks.some((ut) => ut.task_id === taskId && ut.status === "completed")
+  }
 
-  const totalEarned = completedTasks.reduce((sum, taskId) => {
-    const task = tasks.find((t) => t.id === taskId)
+  const availableTasks = tasks.filter((task) => !isTaskCompleted(task.id))
+  const completedTasks = userTasks.filter((ut) => ut.status === "completed")
+
+  const totalEarned = completedTasks.reduce((sum, ut) => {
+    const task = tasks.find((t) => t.id === ut.task_id)
     return sum + (task?.reward || 0)
   }, 0)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-yellow-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-50">
         <div className="max-w-md mx-auto px-4 py-3">
-          <div className="flex items-center gap-3">
-            <SoundButton variant="ghost" size="sm" onClick={onBack}>
-              <ArrowLeft className="h-5 w-5" />
-            </SoundButton>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
-                <Target className="h-4 w-4 text-white" />
-              </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <SoundButton variant="ghost" size="sm" onClick={onBack}>
+                <ArrowLeft className="h-5 w-5" />
+              </SoundButton>
               <div>
-                <h1 className="font-bold text-gray-800">দৈনিক টাস্ক</h1>
-                <p className="text-xs text-gray-600">টাস্ক সম্পন্ন করে আয় করুন</p>
+                <h1 className="font-bold text-gray-800 text-lg">টাস্ক সেন্টার</h1>
+                <p className="text-xs text-gray-600">টাস্ক করে পুরস্কার জিতুন</p>
               </div>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-medium text-green-600">৳{totalEarned.toLocaleString()}</p>
+              <p className="text-xs text-gray-500">মোট আয়</p>
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-md mx-auto p-4 space-y-4">
-        {/* Stats Card */}
-        <Card className="bg-gradient-to-r from-orange-500 to-yellow-600 text-white border-0">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-3 gap-3">
+          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0">
+            <CardContent className="p-3 text-center">
+              <Target className="h-6 w-6 mx-auto mb-1 opacity-80" />
+              <div className="text-lg font-bold">{availableTasks.length}</div>
+              <p className="text-xs opacity-80">উপলব্ধ</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0">
+            <CardContent className="p-3 text-center">
+              <CheckCircle className="h-6 w-6 mx-auto mb-1 opacity-80" />
+              <div className="text-lg font-bold">{completedTasks.length}</div>
+              <p className="text-xs opacity-80">সম্পন্ন</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white border-0">
+            <CardContent className="p-3 text-center">
+              <Award className="h-6 w-6 mx-auto mb-1 opacity-80" />
+              <div className="text-lg font-bold">৳{totalEarned}</div>
+              <p className="text-xs opacity-80">আয়</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex bg-white rounded-lg p-1 shadow-sm">
+          <SoundButton
+            variant={activeTab === "available" ? "default" : "ghost"}
+            size="sm"
+            className="flex-1 text-xs"
+            onClick={() => setActiveTab("available")}
+          >
+            উপলব্ধ ({availableTasks.length})
+          </SoundButton>
+          <SoundButton
+            variant={activeTab === "completed" ? "default" : "ghost"}
+            size="sm"
+            className="flex-1 text-xs"
+            onClick={() => setActiveTab("completed")}
+          >
+            সম্পন্ন ({completedTasks.length})
+          </SoundButton>
+        </div>
+
+        {/* Available Tasks Tab */}
+        {activeTab === "available" && (
+          <div className="space-y-3">
+            {availableTasks.length === 0 ? (
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <Target className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-600">কোন উপলব্ধ টাস্ক নেই</p>
+                  <p className="text-xs text-gray-500 mt-1">নতুন টাস্কের জন্য অপেক্ষা করুন</p>
+                </CardContent>
+              </Card>
+            ) : (
+              availableTasks.map((task) => {
+                const TaskIcon = getTaskIcon(task.type)
+                return (
+                  <Card key={task.id} className="bg-white hover:shadow-md transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-start gap-3">
+                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                            <TaskIcon className="h-6 w-6 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-base mb-1">{task.title_bn}</h3>
+                            <p className="text-sm text-gray-600 mb-2">{task.description_bn}</p>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">
+                                {getTaskTypeText(task.type)}
+                              </Badge>
+                              <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
+                                ৳{task.reward}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                        <p className="text-xs text-gray-600 mb-1">প্রয়োজনীয়তা:</p>
+                        <p className="text-sm font-medium">{task.requirement}</p>
+                      </div>
+
+                      <SoundButton
+                        className="w-full"
+                        onClick={() => handleCompleteTask(task.id)}
+                        disabled={loading === task.id}
+                      >
+                        {loading === task.id ? (
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 animate-spin" />
+                            প্রক্রিয়াকরণ...
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4" />
+                            টাস্ক সম্পন্ন করুন
+                          </div>
+                        )}
+                      </SoundButton>
+                    </CardContent>
+                  </Card>
+                )
+              })
+            )}
+          </div>
+        )}
+
+        {/* Completed Tasks Tab */}
+        {activeTab === "completed" && (
+          <div className="space-y-3">
+            {completedTasks.length === 0 ? (
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <CheckCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-600">কোন সম্পন্ন টাস্ক নেই</p>
+                  <SoundButton variant="outline" size="sm" className="mt-3" onClick={() => setActiveTab("available")}>
+                    টাস্ক করুন
+                  </SoundButton>
+                </CardContent>
+              </Card>
+            ) : (
+              completedTasks.map((userTask) => {
+                const task = tasks.find((t) => t.id === userTask.task_id)
+                if (!task) return null
+
+                const TaskIcon = getTaskIcon(task.type)
+                return (
+                  <Card key={userTask.id} className="bg-green-50 border-green-200">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-start gap-3">
+                          <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center">
+                            <TaskIcon className="h-6 w-6 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-base mb-1">{task.title_bn}</h3>
+                            <p className="text-sm text-gray-600 mb-2">{task.description_bn}</p>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">
+                                {getTaskTypeText(task.type)}
+                              </Badge>
+                              <Badge className="text-xs bg-green-600">
+                                <Award className="h-3 w-3 mr-1" />৳{task.reward} পেয়েছেন
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                        <CheckCircle className="h-6 w-6 text-green-500" />
+                      </div>
+
+                      <div className="bg-white rounded-lg p-3">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-gray-600">সম্পন্ন হয়েছে:</span>
+                          <span className="font-medium">
+                            {userTask.completed_at && new Date(userTask.completed_at).toLocaleDateString("bn-BD")}
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })
+            )}
+          </div>
+        )}
+
+        {/* Daily Tasks Reminder */}
+        <Card className="bg-gradient-to-r from-purple-500 to-pink-600 text-white border-0">
           <CardContent className="p-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center">
-                <p className="text-2xl font-bold">{completedTasks.length}</p>
-                <p className="text-xs opacity-90">সম্পন্ন টাস্ক</p>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                <Gift className="h-6 w-6" />
               </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold">৳{totalEarned}</p>
-                <p className="text-xs opacity-90">মোট আয়</p>
+              <div className="flex-1">
+                <h3 className="font-bold mb-1">দৈনিক টাস্ক</h3>
+                <p className="text-sm opacity-90">প্রতিদিন নতুন টাস্ক পান এবং পুরস্কার জিতুন!</p>
               </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold">{tasks.length - completedTasks.length}</p>
-                <p className="text-xs opacity-90">বাকি টাস্ক</p>
-              </div>
+              <Star className="h-8 w-8 opacity-60" />
             </div>
           </CardContent>
         </Card>
 
-        {/* Daily Tasks */}
-        {dailyTasks.length > 0 && (
-          <div className="space-y-3">
-            <h2 className="text-lg font-semibold bangla-text flex items-center gap-2">
-              <Clock className="h-5 w-5 text-orange-500" />
-              দৈনিক টাস্ক
-            </h2>
-            {dailyTasks.map((task) => {
-              const isCompleted = completedTasks.includes(task.id)
-              const TaskIcon = getTaskIcon(task.type)
-
-              return (
-                <Card key={task.id} className={`${isCompleted ? "bg-green-50 border-green-200" : ""}`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3 flex-1">
-                        <div
-                          className={`w-10 h-10 ${getTaskColor(task.type)} rounded-full flex items-center justify-center`}
-                        >
-                          <TaskIcon className="h-5 w-5 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-medium text-sm">{task.title_bn}</h3>
-                          <p className="text-xs text-gray-600 mt-1">{task.description_bn}</p>
-                          <div className="flex items-center gap-2 mt-2">
-                            <Badge variant="secondary" className="text-xs">
-                              <Award className="h-3 w-3 mr-1" />৳{task.reward}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              {task.type === "daily"
-                                ? "দৈনিক"
-                                : task.type === "video"
-                                  ? "ভিডিও"
-                                  : task.type === "social"
-                                    ? "সোশ্যাল"
-                                    : task.type === "referral"
-                                      ? "রেফারেল"
-                                      : "সাধারণ"}
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="ml-2">
-                        {isCompleted ? (
-                          <div className="flex items-center gap-1 text-green-600">
-                            <CheckCircle className="h-4 w-4" />
-                            <span className="text-xs font-medium">সম্পন্ন</span>
-                          </div>
-                        ) : (
-                          <SoundButton
-                            size="sm"
-                            onClick={() => handleCompleteTask(task.id)}
-                            disabled={loading === task.id}
-                            className="text-xs px-3"
-                          >
-                            {loading === task.id ? "..." : "শুরু করুন"}
-                          </SoundButton>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
-        )}
-
-        {/* Video Tasks */}
-        {videoTasks.length > 0 && (
-          <div className="space-y-3">
-            <h2 className="text-lg font-semibold bangla-text flex items-center gap-2">
-              <Play className="h-5 w-5 text-red-500" />
-              ভিডিও টাস্ক
-            </h2>
-            {videoTasks.map((task) => {
-              const isCompleted = completedTasks.includes(task.id)
-
-              return (
-                <Card key={task.id} className={`${isCompleted ? "bg-green-50 border-green-200" : ""}`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3 flex-1">
-                        <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center">
-                          <Play className="h-5 w-5 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-medium text-sm">{task.title_bn}</h3>
-                          <p className="text-xs text-gray-600 mt-1">{task.description_bn}</p>
-                          <div className="flex items-center gap-2 mt-2">
-                            <Badge variant="secondary" className="text-xs">
-                              <Award className="h-3 w-3 mr-1" />৳{task.reward}
-                            </Badge>
-                            <Badge className="text-xs bg-red-100 text-red-800">ভিডিও দেখুন</Badge>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="ml-2">
-                        {isCompleted ? (
-                          <div className="flex items-center gap-1 text-green-600">
-                            <CheckCircle className="h-4 w-4" />
-                            <span className="text-xs font-medium">সম্পন্ন</span>
-                          </div>
-                        ) : (
-                          <SoundButton
-                            size="sm"
-                            onClick={() => handleCompleteTask(task.id)}
-                            disabled={loading === task.id}
-                            className="text-xs px-3"
-                          >
-                            {loading === task.id ? "..." : "দেখুন"}
-                          </SoundButton>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
-        )}
-
-        {/* Social Tasks */}
-        {socialTasks.length > 0 && (
-          <div className="space-y-3">
-            <h2 className="text-lg font-semibold bangla-text flex items-center gap-2">
-              <Share2 className="h-5 w-5 text-blue-500" />
-              সোশ্যাল টাস্ক
-            </h2>
-            {socialTasks.map((task) => {
-              const isCompleted = completedTasks.includes(task.id)
-
-              return (
-                <Card key={task.id} className={`${isCompleted ? "bg-green-50 border-green-200" : ""}`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3 flex-1">
-                        <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                          <Share2 className="h-5 w-5 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-medium text-sm">{task.title_bn}</h3>
-                          <p className="text-xs text-gray-600 mt-1">{task.description_bn}</p>
-                          <div className="flex items-center gap-2 mt-2">
-                            <Badge variant="secondary" className="text-xs">
-                              <Award className="h-3 w-3 mr-1" />৳{task.reward}
-                            </Badge>
-                            <Badge className="text-xs bg-blue-100 text-blue-800">শেয়ার করুন</Badge>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="ml-2">
-                        {isCompleted ? (
-                          <div className="flex items-center gap-1 text-green-600">
-                            <CheckCircle className="h-4 w-4" />
-                            <span className="text-xs font-medium">সম্পন্ন</span>
-                          </div>
-                        ) : (
-                          <SoundButton
-                            size="sm"
-                            onClick={() => handleCompleteTask(task.id)}
-                            disabled={loading === task.id}
-                            className="text-xs px-3"
-                          >
-                            {loading === task.id ? "..." : "শেয়ার"}
-                          </SoundButton>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
-        )}
-
-        {/* Referral Tasks */}
-        {referralTasks.length > 0 && (
-          <div className="space-y-3">
-            <h2 className="text-lg font-semibold bangla-text flex items-center gap-2">
-              <Users className="h-5 w-5 text-purple-500" />
-              রেফারেল টাস্ক
-            </h2>
-            {referralTasks.map((task) => {
-              const isCompleted = completedTasks.includes(task.id)
-
-              return (
-                <Card key={task.id} className={`${isCompleted ? "bg-green-50 border-green-200" : ""}`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3 flex-1">
-                        <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
-                          <Users className="h-5 w-5 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-medium text-sm">{task.title_bn}</h3>
-                          <p className="text-xs text-gray-600 mt-1">{task.description_bn}</p>
-                          <div className="flex items-center gap-2 mt-2">
-                            <Badge variant="secondary" className="text-xs">
-                              <Award className="h-3 w-3 mr-1" />৳{task.reward}
-                            </Badge>
-                            <Badge className="text-xs bg-purple-100 text-purple-800">রেফার করুন</Badge>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="ml-2">
-                        {isCompleted ? (
-                          <div className="flex items-center gap-1 text-green-600">
-                            <CheckCircle className="h-4 w-4" />
-                            <span className="text-xs font-medium">সম্পন্ন</span>
-                          </div>
-                        ) : (
-                          <SoundButton
-                            size="sm"
-                            onClick={() => handleCompleteTask(task.id)}
-                            disabled={loading === task.id}
-                            className="text-xs px-3"
-                          >
-                            {loading === task.id ? "..." : "রেফার"}
-                          </SoundButton>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
-        )}
-
-        {/* Task Tips */}
-        <Card className="bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Star className="h-4 w-4 text-yellow-600" />
-              টাস্ক টিপস
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex items-start gap-2">
-              <Gift className="h-4 w-4 text-orange-500 mt-0.5" />
-              <span className="text-sm text-gray-700">প্রতিদিন নতুন টাস্ক পাবেন</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
-              <span className="text-sm text-gray-700">সহজ টাস্ক দিয়ে শুরু করুন</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <Users className="h-4 w-4 text-purple-500 mt-0.5" />
-              <span className="text-sm text-gray-700">রেফারেল টাস্কে বেশি আয়</span>
-            </div>
-          </CardContent>
-        </Card>
-
+        {/* Bottom Spacer */}
         <div className="h-20"></div>
       </div>
     </div>

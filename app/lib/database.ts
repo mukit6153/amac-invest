@@ -2,8 +2,9 @@
 
 import { createClient } from "@supabase/supabase-js"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// Use fallback values for development
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://your-project.supabase.co"
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "your-anon-key"
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
@@ -190,6 +191,146 @@ export interface Notification {
   created_at: string
 }
 
+// Mock data for development when database is not available
+const mockBanners: Banner[] = [
+  {
+    id: "1",
+    title: "Welcome to AMAC",
+    title_bn: "AMAC এ স্বাগতম",
+    description: "Start your investment journey today",
+    description_bn: "আজই আপনার বিনিয়োগ যাত্রা শুরু করুন",
+    image_url: "/placeholder.svg?height=160&width=400",
+    status: "active",
+    order_index: 1,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "2",
+    title: "High Returns",
+    title_bn: "উচ্চ রিটার্ন",
+    description: "Get up to 15% daily returns",
+    description_bn: "দৈনিক ১৫% পর্যন্ত রিটার্ন পান",
+    image_url: "/placeholder.svg?height=160&width=400",
+    status: "active",
+    order_index: 2,
+    created_at: new Date().toISOString(),
+  },
+]
+
+const mockPackages: InvestmentPackage[] = [
+  {
+    id: "1",
+    name: "Starter",
+    name_bn: "স্টার্টার",
+    min_amount: 1000,
+    max_amount: 10000,
+    daily_rate: 5,
+    total_days: 30,
+    total_return_rate: 150,
+    status: "active",
+    icon: "🚀",
+    color: "blue",
+    features: ["5% daily return", "30 days plan", "Instant withdrawal"],
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "2",
+    name: "Premium",
+    name_bn: "প্রিমিয়াম",
+    min_amount: 10000,
+    max_amount: 50000,
+    daily_rate: 8,
+    total_days: 25,
+    total_return_rate: 200,
+    status: "active",
+    icon: "💎",
+    color: "purple",
+    features: ["8% daily return", "25 days plan", "Priority support"],
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "3",
+    name: "VIP",
+    name_bn: "ভিআইপি",
+    min_amount: 50000,
+    max_amount: 200000,
+    daily_rate: 12,
+    total_days: 20,
+    total_return_rate: 240,
+    status: "active",
+    icon: "👑",
+    color: "gold",
+    features: ["12% daily return", "20 days plan", "VIP support"],
+    created_at: new Date().toISOString(),
+  },
+]
+
+const mockTasks: Task[] = [
+  {
+    id: "1",
+    title: "Daily Check-in",
+    title_bn: "দৈনিক চেক-ইন",
+    description: "Check in daily to earn bonus",
+    description_bn: "বোনাস পেতে প্রতিদিন চেক-ইন করুন",
+    type: "daily",
+    reward: 50,
+    requirement: "Login daily",
+    status: "active",
+    icon: "📅",
+    color: "green",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "2",
+    title: "Refer Friends",
+    title_bn: "বন্ধুদের রেফার করুন",
+    description: "Refer 3 friends to earn bonus",
+    description_bn: "বোনাস পেতে ৩ জন বন্ধুকে রেফার করুন",
+    type: "referral",
+    reward: 200,
+    requirement: "Refer 3 friends",
+    status: "active",
+    icon: "👥",
+    color: "blue",
+    created_at: new Date().toISOString(),
+  },
+]
+
+const mockEvents: Event[] = [
+  {
+    id: "1",
+    title: "New Year Bonus",
+    title_bn: "নববর্ষ বোনাস",
+    description: "Special bonus for new year",
+    description_bn: "নববর্ষের জন্য বিশেষ বোনাস",
+    type: "bonus",
+    reward: "500 Taka Bonus",
+    start_date: new Date().toISOString(),
+    end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    status: "active",
+    participants: 150,
+    max_participants: 500,
+    created_at: new Date().toISOString(),
+  },
+]
+
+const mockGifts: Gift[] = [
+  {
+    id: "1",
+    title: "Daily Gift",
+    title_bn: "দৈনিক গিফট",
+    description: "Claim your daily gift",
+    description_bn: "আপনার দৈনিক গিফট দাবি করুন",
+    type: "daily",
+    reward: 25,
+    requirement: "Login daily",
+    status: "active",
+    icon: "🎁",
+    color: "red",
+    created_at: new Date().toISOString(),
+  },
+]
+
 // Authentication Functions
 export const authFunctions = {
   async signUp(userData: {
@@ -277,8 +418,8 @@ export const authFunctions = {
       await supabase.from("notifications").insert([
         {
           user_id: newUser.id,
-          title: "Welcome to AJBell",
-          title_bn: "AJBell এ স্বাগতম",
+          title: "Welcome to AMAC",
+          title_bn: "AMAC এ স্বাগতম",
           message: "Your account has been created successfully!",
           message_bn: "আপনার অ্যাকাউন্ট সফলভাবে তৈরি হয়েছে!",
           type: "success",
@@ -369,192 +510,297 @@ export const authFunctions = {
   },
 
   async getCurrentUser(userId: string) {
-    const { data, error } = await supabase.from("users").select("*").eq("id", userId).single()
-    if (error) throw error
-    return data
+    try {
+      const { data, error } = await supabase.from("users").select("*").eq("id", userId).single()
+      if (error) throw error
+      return data
+    } catch (error) {
+      console.warn("Error fetching current user:", error)
+      return null
+    }
   },
 }
 
 // Real-time Functions
 export const realtimeFunctions = {
   subscribeToUserUpdates(userId: string, callback: (user: User) => void) {
-    return supabase
-      .channel(`user-${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "users",
-          filter: `id=eq.${userId}`,
-        },
-        (payload) => callback(payload.new as User),
-      )
-      .subscribe()
+    try {
+      return supabase
+        .channel(`user-${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "users",
+            filter: `id=eq.${userId}`,
+          },
+          (payload) => callback(payload.new as User),
+        )
+        .subscribe()
+    } catch (error) {
+      console.warn("Error subscribing to user updates:", error)
+      return { unsubscribe: () => {} }
+    }
   },
 
   subscribeToTransactions(userId: string, callback: (transaction: Transaction) => void) {
-    return supabase
-      .channel(`transactions-${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "transactions",
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => callback(payload.new as Transaction),
-      )
-      .subscribe()
+    try {
+      return supabase
+        .channel(`transactions-${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "transactions",
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => callback(payload.new as Transaction),
+        )
+        .subscribe()
+    } catch (error) {
+      console.warn("Error subscribing to transactions:", error)
+      return { unsubscribe: () => {} }
+    }
   },
 
   subscribeToNotifications(userId: string, callback: (notification: Notification) => void) {
-    return supabase
-      .channel(`notifications-${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => callback(payload.new as Notification),
-      )
-      .subscribe()
+    try {
+      return supabase
+        .channel(`notifications-${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => callback(payload.new as Notification),
+        )
+        .subscribe()
+    } catch (error) {
+      console.warn("Error subscribing to notifications:", error)
+      return { unsubscribe: () => {} }
+    }
   },
 
   subscribeToInvestments(userId: string, callback: (investment: Investment) => void) {
-    return supabase
-      .channel(`investments-${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "investments",
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => callback(payload.new as Investment),
-      )
-      .subscribe()
+    try {
+      return supabase
+        .channel(`investments-${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "investments",
+            filter: `user_id=eq.${userId}`,
+          },
+          (payload) => callback(payload.new as Investment),
+        )
+        .subscribe()
+    } catch (error) {
+      console.warn("Error subscribing to investments:", error)
+      return { unsubscribe: () => {} }
+    }
   },
 }
 
-// Data Functions
+// Data Functions with fallback to mock data
 export const dataFunctions = {
   async getBanners() {
-    const { data, error } = await supabase
-      .from("banners")
-      .select("*")
-      .eq("status", "active")
-      .order("order_index", { ascending: true })
+    try {
+      const { data, error } = await supabase
+        .from("banners")
+        .select("*")
+        .eq("status", "active")
+        .order("order_index", { ascending: true })
 
-    if (error) throw error
-    return data || []
+      if (error) {
+        console.warn("Using mock banners data")
+        return mockBanners
+      }
+      return data || mockBanners
+    } catch (error) {
+      console.warn("Error fetching banners, using mock data:", error)
+      return mockBanners
+    }
   },
 
   async getInvestmentPackages() {
-    const { data, error } = await supabase
-      .from("investment_packages")
-      .select("*")
-      .eq("status", "active")
-      .order("min_amount", { ascending: true })
+    try {
+      const { data, error } = await supabase
+        .from("investment_packages")
+        .select("*")
+        .eq("status", "active")
+        .order("min_amount", { ascending: true })
 
-    if (error) throw error
-    return data || []
+      if (error) {
+        console.warn("Using mock packages data")
+        return mockPackages
+      }
+      return data || mockPackages
+    } catch (error) {
+      console.warn("Error fetching investment packages, using mock data:", error)
+      return mockPackages
+    }
   },
 
   async getUserInvestments(userId: string) {
-    const { data, error } = await supabase
-      .from("investments")
-      .select(`
-        *,
-        investment_packages (*)
-      `)
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
+    try {
+      const { data, error } = await supabase
+        .from("investments")
+        .select(`
+          *,
+          investment_packages (*)
+        `)
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
 
-    if (error) throw error
-    return data || []
+      if (error) {
+        console.warn("Using empty investments data")
+        return []
+      }
+      return data || []
+    } catch (error) {
+      console.warn("Error fetching user investments:", error)
+      return []
+    }
   },
 
   async getUserTransactions(userId: string, limit = 20) {
-    const { data, error } = await supabase
-      .from("transactions")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(limit)
+    try {
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(limit)
 
-    if (error) throw error
-    return data || []
+      if (error) {
+        console.warn("Using empty transactions data")
+        return []
+      }
+      return data || []
+    } catch (error) {
+      console.warn("Error fetching user transactions:", error)
+      return []
+    }
   },
 
   async getActiveTasks() {
-    const { data, error } = await supabase.from("tasks").select("*").eq("status", "active")
+    try {
+      const { data, error } = await supabase.from("tasks").select("*").eq("status", "active")
 
-    if (error) throw error
-    return data || []
+      if (error) {
+        console.warn("Using mock tasks data")
+        return mockTasks
+      }
+      return data || mockTasks
+    } catch (error) {
+      console.warn("Error fetching active tasks, using mock data:", error)
+      return mockTasks
+    }
   },
 
   async getUserTasks(userId: string) {
-    const { data, error } = await supabase
-      .from("user_tasks")
-      .select(`
-        *,
-        tasks (*)
-      `)
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
+    try {
+      const { data, error } = await supabase
+        .from("user_tasks")
+        .select(`
+          *,
+          tasks (*)
+        `)
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
 
-    if (error) throw error
-    return data || []
+      if (error) {
+        console.warn("Using empty user tasks data")
+        return []
+      }
+      return data || []
+    } catch (error) {
+      console.warn("Error fetching user tasks:", error)
+      return []
+    }
   },
 
   async getActiveEvents() {
-    const { data, error } = await supabase
-      .from("events")
-      .select("*")
-      .eq("status", "active")
-      .order("created_at", { ascending: false })
+    try {
+      const { data, error } = await supabase
+        .from("events")
+        .select("*")
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
 
-    if (error) throw error
-    return data || []
+      if (error) {
+        console.warn("Using mock events data")
+        return mockEvents
+      }
+      return data || mockEvents
+    } catch (error) {
+      console.warn("Error fetching active events, using mock data:", error)
+      return mockEvents
+    }
   },
 
   async getActiveGifts() {
-    const { data, error } = await supabase.from("gifts").select("*").eq("status", "active")
+    try {
+      const { data, error } = await supabase.from("gifts").select("*").eq("status", "active")
 
-    if (error) throw error
-    return data || []
+      if (error) {
+        console.warn("Using mock gifts data")
+        return mockGifts
+      }
+      return data || mockGifts
+    } catch (error) {
+      console.warn("Error fetching active gifts, using mock data:", error)
+      return mockGifts
+    }
   },
 
   async getUserNotifications(userId: string, limit = 10) {
-    const { data, error } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(limit)
+    try {
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(limit)
 
-    if (error) throw error
-    return data || []
+      if (error) {
+        console.warn("Using empty notifications data")
+        return []
+      }
+      return data || []
+    } catch (error) {
+      console.warn("Error fetching user notifications:", error)
+      return []
+    }
   },
 
   async getUserReferrals(userId: string) {
-    const { data, error } = await supabase
-      .from("referrals")
-      .select(`
-        *,
-        users!referrals_referred_id_fkey(name, phone, created_at, total_invested)
-      `)
-      .eq("referrer_id", userId)
-      .order("created_at", { ascending: false })
+    try {
+      const { data, error } = await supabase
+        .from("referrals")
+        .select(`
+          *,
+          users!referrals_referred_id_fkey(name, phone, created_at, total_invested)
+        `)
+        .eq("referrer_id", userId)
+        .order("created_at", { ascending: false })
 
-    if (error) throw error
-    return data || []
+      if (error) {
+        console.warn("Using empty referrals data")
+        return []
+      }
+      return data || []
+    } catch (error) {
+      console.warn("Error fetching user referrals:", error)
+      return []
+    }
   },
 }
 
@@ -870,14 +1116,19 @@ export const actionFunctions = {
   },
 
   async markNotificationAsRead(notificationId: string) {
-    const { data, error } = await supabase
-      .from("notifications")
-      .update({ read: true })
-      .eq("id", notificationId)
-      .select()
-      .single()
+    try {
+      const { data, error } = await supabase
+        .from("notifications")
+        .update({ read: true })
+        .eq("id", notificationId)
+        .select()
+        .single()
 
-    if (error) throw error
-    return data
+      if (error) throw error
+      return data
+    } catch (error) {
+      console.warn("Error marking notification as read:", error)
+      return null
+    }
   },
 }

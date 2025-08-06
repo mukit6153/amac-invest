@@ -1,44 +1,75 @@
 "use client"
 
-import type React from "react"
-
 import { Button } from "@/components/ui/button"
-import { useSound } from "../hooks/use-sound"
+import { useSound } from "@/app/hooks/use-sound"
+import { Volume2, VolumeX } from 'lucide-react'
 import { cn } from "@/lib/utils"
 
-interface SoundButtonProps {
-  children: React.ReactNode
-  soundType?: "click" | "success" | "error" | "notification" | "coinCollect" | "buttonClick" | "spin" | "bonus"
+export interface SoundButtonProps {
+  children?: React.ReactNode
   onClick?: () => void
-  className?: string
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link"
   size?: "default" | "sm" | "lg" | "icon"
+  soundType?: "click" | "success" | "error" | "notification" | "spin" | "reward"
   disabled?: boolean
+  className?: string
+  showSoundIcon?: boolean
 }
 
-export default function SoundButton({
+export function SoundButton({
   children,
-  soundType = "buttonClick",
   onClick,
-  className,
   variant = "default",
   size = "default",
+  soundType = "click",
   disabled = false,
+  className,
+  showSoundIcon = false,
+  ...props
 }: SoundButtonProps) {
-  const { playSound, isEnabled } = useSound()
+  const { playSound, isSoundEnabled, toggleSound } = useSound()
 
   const handleClick = () => {
-    if (isEnabled && !disabled) {
+    if (!disabled) {
       playSound(soundType)
-    }
-    if (onClick) {
-      onClick()
+      onClick?.()
     }
   }
 
+  const handleSoundToggle = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    toggleSound()
+  }
+
   return (
-    <Button variant={variant} size={size} onClick={handleClick} disabled={disabled} className={cn(className)}>
-      {children}
-    </Button>
+    <div className="relative inline-block">
+      <Button
+        variant={variant}
+        size={size}
+        onClick={handleClick}
+        disabled={disabled}
+        className={cn(className)}
+        {...props}
+      >
+        {children}
+      </Button>
+      
+      {showSoundIcon && (
+        <button
+          onClick={handleSoundToggle}
+          className="absolute -top-2 -right-2 w-6 h-6 bg-gray-800 text-white rounded-full flex items-center justify-center text-xs hover:bg-gray-700 transition-colors"
+          aria-label={isSoundEnabled ? "Disable sound" : "Enable sound"}
+        >
+          {isSoundEnabled ? (
+            <Volume2 className="w-3 h-3" />
+          ) : (
+            <VolumeX className="w-3 h-3" />
+          )}
+        </button>
+      )}
+    </div>
   )
 }
+
+// Named export for compatibility
+export { SoundButton as default }

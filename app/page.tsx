@@ -4,30 +4,32 @@ import { useState, useEffect } from "react"
 import SplashScreen from "./components/splash-screen"
 import AuthScreen from "./components/auth-screen"
 import CompleteHomeScreen from "./components/complete-home-screen"
+import InvestmentScreen from "./components/investment-screen"
 import type { User } from "./lib/database"
 
 export default function Home() {
-  const [currentScreen, setCurrentScreen] = useState<"splash" | "auth" | "home">("splash")
+  const [currentScreen, setCurrentScreen] = useState<"splash" | "auth" | "home" | "investment">("splash")
   const [user, setUser] = useState<User | null>(null)
-  const [dailyBonus, setDailyBonus] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     // Check if user is already logged in
-    const storedUser = localStorage.getItem("amac_user")
-    if (storedUser) {
+    const savedUser = localStorage.getItem("amac_user")
+    if (savedUser) {
       try {
-        const parsedUser = JSON.parse(storedUser)
+        const parsedUser = JSON.parse(savedUser)
         setUser(parsedUser)
         setCurrentScreen("home")
       } catch (error) {
-        console.error("Error parsing stored user:", error)
+        console.error("Error parsing saved user:", error)
         localStorage.removeItem("amac_user")
       }
     }
 
     // Show splash screen for 3 seconds
     const timer = setTimeout(() => {
-      if (!storedUser) {
+      setIsLoading(false)
+      if (!savedUser) {
         setCurrentScreen("auth")
       }
     }, 3000)
@@ -38,22 +40,12 @@ export default function Home() {
   const handleLogin = (userData: User) => {
     setUser(userData)
     localStorage.setItem("amac_user", JSON.stringify(userData))
-
-    // Check for daily bonus
-    const lastBonusDate = localStorage.getItem("lastBonusDate")
-    const today = new Date().toDateString()
-
-    if (lastBonusDate !== today) {
-      setDailyBonus(50) // Daily bonus amount
-    }
-
     setCurrentScreen("home")
   }
 
   const handleLogout = () => {
     setUser(null)
     localStorage.removeItem("amac_user")
-    localStorage.removeItem("lastBonusDate")
     setCurrentScreen("auth")
   }
 
@@ -62,7 +54,15 @@ export default function Home() {
     localStorage.setItem("amac_user", JSON.stringify(updatedUser))
   }
 
-  if (currentScreen === "splash") {
+  const handleNavigateToInvestment = () => {
+    setCurrentScreen("investment")
+  }
+
+  const handleBackToHome = () => {
+    setCurrentScreen("home")
+  }
+
+  if (currentScreen === "splash" || isLoading) {
     return <SplashScreen />
   }
 
@@ -70,11 +70,26 @@ export default function Home() {
     return <AuthScreen onLogin={handleLogin} />
   }
 
-  if (currentScreen === "home" && user) {
+  if (currentScreen === "investment" && user) {
     return (
-      <CompleteHomeScreen user={user} dailyBonus={dailyBonus} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />
+      <InvestmentScreen 
+        user={user} 
+        onBack={handleBackToHome}
+        onUserUpdate={handleUserUpdate}
+      />
     )
   }
 
-  return <SplashScreen />
+  if (currentScreen === "home" && user) {
+    return (
+      <CompleteHomeScreen
+        user={user}
+        onLogout={handleLogout}
+        onUserUpdate={handleUserUpdate}
+        onNavigateToInvestment={handleNavigateToInvestment}
+      />
+    )
+  }
+
+  return <AuthScreen onLogin={handleLogin} />
 }

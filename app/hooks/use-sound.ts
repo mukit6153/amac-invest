@@ -1,95 +1,124 @@
 "use client"
 
-import { useState, useCallback, useRef, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 
-interface SoundConfig {
-  frequency: number
-  duration: number
-  type: OscillatorType
-  volume: number
+interface SoundHook {
+  playSound: (type: string) => void
+  isEnabled: boolean
+  setIsEnabled: (enabled: boolean) => void
+  sounds: {
+    buttonClick: () => void
+    success: () => void
+    error: () => void
+    notification: () => void
+    coinCollect: () => void
+    spin: () => void
+    bonus: () => void
+  }
 }
 
-const soundConfigs: Record<string, SoundConfig> = {
-  click: { frequency: 800, duration: 100, type: "sine", volume: 0.1 },
-  success: { frequency: 600, duration: 200, type: "sine", volume: 0.15 },
-  error: { frequency: 300, duration: 300, type: "sawtooth", volume: 0.1 },
-  notification: { frequency: 1000, duration: 150, type: "triangle", volume: 0.1 },
-  coinCollect: { frequency: 1200, duration: 200, type: "sine", volume: 0.12 },
-  buttonClick: { frequency: 700, duration: 80, type: "square", volume: 0.08 },
-  spin: { frequency: 400, duration: 500, type: "sine", volume: 0.1 },
-  bonus: { frequency: 800, duration: 300, type: "triangle", volume: 0.15 },
-}
-
-export function useSound() {
+export function useSound(): SoundHook {
   const [isEnabled, setIsEnabled] = useState(true)
-  const audioContextRef = useRef<AudioContext | null>(null)
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null)
 
   useEffect(() => {
     // Initialize AudioContext on first user interaction
-    const initAudioContext = () => {
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
+    const initAudio = () => {
+      if (!audioContext) {
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+        setAudioContext(ctx)
       }
     }
 
-    // Add event listeners for user interaction
-    const events = ["click", "touchstart", "keydown"]
-    events.forEach((event) => {
-      document.addEventListener(event, initAudioContext, { once: true })
-    })
+    document.addEventListener("click", initAudio, { once: true })
+    document.addEventListener("touchstart", initAudio, { once: true })
 
     return () => {
-      events.forEach((event) => {
-        document.removeEventListener(event, initAudioContext)
-      })
+      document.removeEventListener("click", initAudio)
+      document.removeEventListener("touchstart", initAudio)
     }
-  }, [])
+  }, [audioContext])
+
+  const createTone = useCallback(
+    (frequency: number, duration: number, type: OscillatorType = "sine") => {
+      if (!audioContext || !isEnabled) return
+
+      const oscillator = audioContext.createOscillator()
+      const gainNode = audioContext.createGain()
+
+      oscillator.connect(gainNode)
+      gainNode.connect(audioContext.destination)
+
+      oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime)
+      oscillator.type = type
+
+      gainNode.gain.setValueAtTime(0.1, audioContext.currentTime)
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration)
+
+      oscillator.start(audioContext.currentTime)
+      oscillator.stop(audioContext.currentTime + duration)
+    },
+    [audioContext, isEnabled]
+  )
 
   const playSound = useCallback(
-    (soundType: keyof typeof soundConfigs) => {
-      if (!isEnabled || !audioContextRef.current) return
+    (type: string) => {
+      if (!isEnabled || !audioContext) return
 
-      const config = soundConfigs[soundType]
-      if (!config) return
-
-      try {
-        const oscillator = audioContextRef.current.createOscillator()
-        const gainNode = audioContextRef.current.createGain()
-
-        oscillator.connect(gainNode)
-        gainNode.connect(audioContextRef.current.destination)
-
-        oscillator.frequency.setValueAtTime(config.frequency, audioContextRef.current.currentTime)
-        oscillator.type = config.type
-
-        gainNode.gain.setValueAtTime(0, audioContextRef.current.currentTime)
-        gainNode.gain.linearRampToValueAtTime(config.volume, audioContextRef.current.currentTime + 0.01)
-        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContextRef.current.currentTime + config.duration / 1000)
-
-        oscillator.start(audioContextRef.current.currentTime)
-        oscillator.stop(audioContextRef.current.currentTime + config.duration / 1000)
-      } catch (error) {
-        console.warn("Error playing sound:", error)
+      switch (type) {
+        case "click":
+        case "buttonClick":
+          createTone(800, 0.1)
+          break
+        case "success":
+          createTone(523, 0.2)
+          setTimeout(() => createTone(659, 0.2), 100)
+          setTimeout(() => createTone(784, 0.3), 200)
+          break
+        case "error":
+          createTone(200, 0.5, "sawtooth")
+          break
+        case "notification":
+          createTone(440, 0.2)
+          setTimeout(() => createTone(554, 0.2), 150)
+          break
+        case "coinCollect":
+          createTone(659, 0.1)
+          setTimeout(() => createTone(784, 0.1), 50)
+          setTimeout(() => createTone(988, 0.2), 100)
+          break
+        case "spin":
+          createTone(330, 0.1)
+          setTimeout(() => createTone(370, 0.1), 50)
+          setTimeout(() => createTone(415, 0.1), 100)
+          break
+        case "bonus":
+          createTone(523, 0.15)
+          setTimeout(() => createTone(659, 0.15), 100)
+          setTimeout(() => createTone(784, 0.15), 200)
+          setTimeout(() => createTone(1047, 0.3), 300)
+          break
+        default:
+          createTone(440, 0.1)
       }
     },
-    [isEnabled],
+    [createTone, isEnabled, audioContext]
   )
 
   const sounds = {
-    click: () => playSound("click"),
+    buttonClick: () => playSound("buttonClick"),
     success: () => playSound("success"),
     error: () => playSound("error"),
     notification: () => playSound("notification"),
     coinCollect: () => playSound("coinCollect"),
-    buttonClick: () => playSound("buttonClick"),
     spin: () => playSound("spin"),
     bonus: () => playSound("bonus"),
   }
 
   return {
-    sounds,
     playSound,
     isEnabled,
     setIsEnabled,
+    sounds,
   }
 }

@@ -5,32 +5,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import {
-  Home,
-  TrendingUp,
-  Wallet,
-  Gift,
-  Users,
-  Settings,
-  Bell,
-  Eye,
-  EyeOff,
-  Copy,
-  Share2,
-  ChevronRight,
-  Target,
-  Calendar,
-  ArrowUpRight,
-  LogOut,
-  UserIcon,
-  ShoppingBag,
-  Gamepad2,
-  PartyPopper,
-  Volume2,
-  VolumeX,
-} from "lucide-react"
+import { Home, TrendingUp, Wallet, Gift, Users, Settings, Bell, Eye, EyeOff, Copy, Share2, ChevronRight, Target, Calendar, ArrowUpRight, LogOut, UserIcon, ShoppingBag, Gamepad2, PartyPopper, Volume2, VolumeX } from 'lucide-react'
 import { useSound } from "../hooks/use-sound"
 import SoundButton from "./sound-button"
+import InvestmentScreen from "./investment-screen"
 import type { User as UserType, InvestmentPackage, Transaction } from "../lib/database"
 
 interface CompleteHomeScreenProps {
@@ -238,6 +216,14 @@ export default function CompleteHomeScreen({
     if (soundEnabled) sounds.buttonClick()
   }
 
+  const handleInvestmentSuccess = (updatedUser: UserType) => {
+    setUser(updatedUser)
+    if (onUserUpdate) {
+      onUserUpdate(updatedUser)
+    }
+    setCurrentScreen("home")
+  }
+
   // Safe access to user properties with defaults
   const safeUser = user
     ? {
@@ -248,13 +234,23 @@ export default function CompleteHomeScreen({
       }
     : null
 
+  // Show investment screen
+  if (currentScreen === "investment") {
+    return (
+      <InvestmentScreen
+        user={safeUser!}
+        onBack={() => setCurrentScreen("home")}
+        onInvestmentSuccess={handleInvestmentSuccess}
+      />
+    )
+  }
+
   if (currentScreen !== "home") {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Card className="w-full max-w-md mx-4">
           <CardHeader>
             <CardTitle className="text-center bengali-text">
-              {currentScreen === "investment" && "বিনিয়োগ"}
               {currentScreen === "withdraw" && "উত্তোলন"}
               {currentScreen === "tasks" && "টাস্ক"}
               {currentScreen === "referral" && "রেফারেল"}

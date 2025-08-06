@@ -1,48 +1,67 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { Card, CardContent } from "@/components/ui/card"
 
 export default function SplashScreen() {
-  const [loading, setLoading] = useState(true)
+  const [progress, setProgress] = useState(0)
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false)
-    }, 2000)
+    const interval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(interval)
+          return 100
+        }
+        return prev + 2
+      })
+    }, 60)
 
-    return () => clearTimeout(timer)
+    return () => clearInterval(interval)
   }, [])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800 flex items-center justify-center">
-      <div className="text-center">
-        {/* Logo */}
-        <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-2xl">
-          <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-red-700 rounded-full flex items-center justify-center">
-            <span className="text-2xl font-bold text-white">A</span>
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800 flex items-center justify-center p-4">
+      <Card className="w-full max-w-sm bg-white/10 backdrop-blur-lg border-white/20">
+        <CardContent className="p-8 text-center">
+          {/* Logo */}
+          <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-2xl">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+              <span className="text-2xl font-bold text-white">A</span>
+            </div>
           </div>
-        </div>
 
-        {/* App Name */}
-        <h1 className="text-4xl font-bold text-white mb-2">AMAC</h1>
-        <p className="text-xl text-white/90 mb-2 bengali-text">ইনভেস্টমেন্ট</p>
-        <p className="text-sm text-white/70 mb-8 bengali-text">নিরাপদ ও লাভজনক বিনিয়োগ</p>
+          {/* App Name */}
+          <h1 className="text-3xl font-bold text-white mb-2 bengali-text">AMAC</h1>
+          <p className="text-white/80 text-lg mb-2 bengali-text">ইনভেস্টমেন্ট</p>
+          <p className="text-white/60 text-sm mb-8 bengali-text">বাংলাদেশের নম্বর ১ বিনিয়োগ প্ল্যাটফর্ম</p>
 
-        {/* Loading Animation */}
-        {loading && (
-          <div className="flex justify-center items-center">
-            <div className="loading-dots">
+          {/* Loading Animation */}
+          <div className="space-y-4">
+            <div className="loading-dots mx-auto">
               <div></div>
               <div></div>
               <div></div>
               <div></div>
             </div>
-          </div>
-        )}
 
-        {/* Version */}
-        <p className="text-xs text-white/50 mt-8">Version 1.0.0</p>
-      </div>
+            {/* Progress Bar */}
+            <div className="w-full bg-white/20 rounded-full h-2">
+              <div
+                className="bg-gradient-to-r from-blue-400 to-purple-400 h-2 rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+
+            <p className="text-white/70 text-sm bengali-text">লোড হচ্ছে... {progress}%</p>
+          </div>
+
+          {/* Version */}
+          <div className="mt-8 pt-4 border-t border-white/20">
+            <p className="text-white/50 text-xs">Version 1.0.0</p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

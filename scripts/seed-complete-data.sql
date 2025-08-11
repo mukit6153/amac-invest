@@ -1,3 +1,6 @@
+-- This file is superseded by seed-initial-data.sql and is kept for historical context.
+-- Please refer to scripts/seed-initial-data.sql for the most up-to-date seed data.
+
 -- Insert investment packages
 INSERT INTO investment_packages (name, name_bn, min_amount, max_amount, daily_return, duration, total_return, is_popular) VALUES
 ('Starter Package', 'স্টার্টার প্যাকেজ', 500.00, 2000.00, 3.00, 30, 90.00, false),

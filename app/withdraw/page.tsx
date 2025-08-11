@@ -1,267 +1,219 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Wallet, AlertTriangle, CheckCircle, Info } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ArrowLeft, DollarSign, Banknote, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { dataFunctions, authFunctions, User } from "@/app/lib/database"
+import WithdrawScreen from "@/app/components/withdraw-screen"
+import SplashScreen from "@/app/components/splash-screen"
+import { useSound } from "@/app/hooks/use-sound"
+import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 
-export default function WithdrawPage() {
-  const [selectedMethod, setSelectedMethod] = useState("")
-  const [amount, setAmount] = useState("")
-  const [accountNumber, setAccountNumber] = useState("")
-  const [hasInvested, setHasInvested] = useState(false) // This would come from user state
+interface WithdrawScreenProps {
+  user: User
+  onUserUpdate: (user: User) => void
+}
 
-  const user = {
-    balance: 2500,
-    bonusBalance: 150,
-    lockedBalance: 800,
-    minWithdraw: 1000,
-    withdrawFee: 50,
+export default async function WithdrawPage() {
+  const cookieStore = cookies()
+  const userId = cookieStore.get('currentUserId')?.value
+
+  let user: User | null = null
+  if (userId) {
+    user = await authFunctions.getCurrentUser(userId)
   }
 
-  const withdrawMethods = [
-    { id: "bkash", name: "bKash", icon: "📱", color: "bg-pink-500" },
-    { id: "nagad", name: "Nagad", icon: "📱", color: "bg-orange-500" },
-    { id: "rocket", name: "Rocket", icon: "🚀", color: "bg-purple-500" },
-  ]
+  if (!user) {
+    redirect('/auth/login')
+  }
 
-  const handleWithdraw = () => {
-    if (!hasInvested) {
-      // Show investment encouragement modal
+  // This page is a client component wrapper for WithdrawScreen
+  // The actual data fetching and state management for the user will happen in the client component
+  // and passed down.
+  return <WithdrawScreen user={user} onUserUpdate={() => { /* client-side update logic */ }} />
+}
+
+function WithdrawScreen({ user, onUserUpdate }: WithdrawScreenProps) {
+  const [amount, setAmount] = useState<number>(0)
+  const [method, setMethod] = useState<string>("")
+  const [accountDetails, setAccountDetails] = useState<string>("")
+  const [loadingWithdrawal, setLoadingWithdrawal] = useState(false)
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const { playSound } = useSound()
+
+  useEffect(() => {
+    if (user?.id) {
+      const channel = authFunctions.subscribeToUserUpdates(user.id, (payload) => {
+        if (payload.new) {
+          onUserUpdate(payload.new as User)
+        }
+      })
+      return () => {
+        channel.unsubscribe()
+      }
+    }
+  }, [user?.id, onUserUpdate])
+
+  const handleWithdraw = async (e: React.FormEvent) => {
+    e.preventDefault()
+    playSound("click")
+    setLoadingWithdrawal(true)
+    setMessage(null)
+
+    if (amount <= 0) {
+      setMessage({ type: "error", text: "উত্তোলনের পরিমাণ অবশ্যই ০ এর বেশি হতে হবে।" })
+      playSound("error")
+      setLoadingWithdrawal(false)
       return
     }
-    // Process withdrawal
-  }
+    if (amount > user.balance) {
+      setMessage({ type: "error", text: "অপর্যাপ্ত ব্যালেন্স।" })
+      playSound("error")
+      setLoadingWithdrawal(false)
+      return
+    }
+    if (!method) {
+      setMessage({ type: "error", text: "উত্তোলনের পদ্ধতি নির্বাচন করুন।" })
+      playSound("error")
+      setLoadingWithdrawal(false)
+      return
+    }
+    if (!accountDetails) {
+      setMessage({ type: "error", text: "অ্যাকাউন্ট বিবরণ লিখুন।" })
+      playSound("error")
+      setLoadingWithdrawal(false)
+      return
+    }
 
-  if (!hasInvested) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-4">
-        {/* Header */}
-        <div className="bg-white shadow-sm p-4 mb-6 rounded-lg">
-          <h1 className="text-xl font-bold text-center">টাকা তোলা</h1>
-        </div>
-
-        {/* Investment Encouragement */}
-        <Card className="border-yellow-200 bg-yellow-50">
-          <CardContent className="p-6 text-center">
-            <div className="w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertTriangle className="h-8 w-8 text-white" />
-            </div>
-            <h2 className="text-xl font-bold text-yellow-800 mb-2">আপনি এখনো ইনভেস্ট করেননি!</h2>
-            <p className="text-yellow-700 mb-6">
-              ইনভেস্ট করলে আপনার আয় তোলার সুবিধা খুলে যাবে। এছাড়াও পাবেন দৈনিক গ্যারান্টিযুক্ত রিটার্ন এবং সম্পূর্ণ টাস্ক ফিচার।
-            </p>
-
-            {/* Benefits */}
-            <div className="bg-white rounded-lg p-4 mb-6">
-              <h3 className="font-semibold mb-3">বিনিয়োগের সুবিধাসমূহ:</h3>
-              <div className="space-y-2 text-left">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span className="text-sm">দৈনিক ২০-৩০% রিটার্ন</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span className="text-sm">উইথড্র সুবিধা সক্রিয়</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span className="text-sm">সম্পূর্ণ টাস্ক ফিচার আনলক</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span className="text-sm">রেফারেল বোনাস বৃদ্ধি</span>
-                </div>
-              </div>
-            </div>
-
-            <Button className="w-full bg-blue-600 hover:bg-blue-700" size="lg">
-              এখনই ইনভেস্ট করুন
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Current Balance (Locked) */}
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Wallet className="h-5 w-5" />
-              আপনার ব্যালেন্স
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span>মোট ব্যালেন্স</span>
-                <span className="font-bold">৳{user.balance.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>বোনাস ব্যালেন্স</span>
-                <span className="font-bold text-green-600">৳{user.bonusBalance}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>লক ব্যালেন্স</span>
-                <span className="font-bold text-red-600">৳{user.lockedBalance}</span>
-              </div>
-            </div>
-            <Alert className="mt-4 border-red-200 bg-red-50">
-              <Info className="h-4 w-4 text-red-600" />
-              <AlertDescription className="text-red-800">বিনিয়োগ ছাড়া টাকা তোলা যাবে না</AlertDescription>
-            </Alert>
-          </CardContent>
-        </Card>
-      </div>
-    )
+    try {
+      const updatedUser = await dataFunctions.processWithdrawal(user.id, amount, method, accountDetails)
+      onUserUpdate(updatedUser)
+      setMessage({ type: "success", text: "উত্তোলনের অনুরোধ সফলভাবে জমা দেওয়া হয়েছে!" })
+      playSound("success")
+      setAmount(0)
+      setMethod("")
+      setAccountDetails("")
+    } catch (err: any) {
+      setMessage({ type: "error", text: err.message || "উত্তোলন ব্যর্থ হয়েছে।" })
+      playSound("error")
+    } finally {
+      setLoadingWithdrawal(false)
+      setTimeout(() => setMessage(null), 3000)
+    }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <div className="bg-white shadow-sm p-4 mb-6 rounded-lg">
-        <h1 className="text-xl font-bold text-center">টাকা তোলা</h1>
+      <div className="bg-white p-4 shadow-sm flex items-center justify-between">
+        <Button variant="ghost" size="icon" onClick={() => { playSound("click"); window.history.back() }}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <h1 className="text-xl font-bold bangla-text">উত্তোলন</h1>
+        <div className="w-5 h-5" /> {/* Placeholder for alignment */}
       </div>
 
-      {/* Balance Info */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Wallet className="h-5 w-5" />
-            উইথড্র যোগ্য ব্যালেন্স
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center">
-            <p className="text-3xl font-bold text-green-600">৳{user.balance.toLocaleString()}</p>
-            <p className="text-sm text-gray-600 mt-1">
-              সর্বনিম্ন উইথড্র: ৳{user.minWithdraw} | ফি: ৳{user.withdrawFee}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Withdraw Methods */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>উইথড্র পদ্ধতি নির্বাচন করুন</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-3">
-            {withdrawMethods.map((method) => (
-              <button
-                key={method.id}
-                onClick={() => setSelectedMethod(method.id)}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  selectedMethod === method.id ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"
-                }`}
-              >
-                <div className="text-center">
-                  <div
-                    className={`w-12 h-12 ${method.color} rounded-full flex items-center justify-center mx-auto mb-2`}
-                  >
-                    <span className="text-2xl">{method.icon}</span>
-                  </div>
-                  <p className="font-medium">{method.name}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Withdraw Form */}
-      {selectedMethod && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>উইথড্র তথ্য</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="amount">উইথড্র পরিমাণ</Label>
-              <Input
-                id="amount"
-                type="number"
-                placeholder={`সর্বনিম্ন ৳${user.minWithdraw}`}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="account">
-                {selectedMethod === "bkash" ? "bKash" : selectedMethod === "nagad" ? "Nagad" : "Rocket"} নম্বর
-              </Label>
-              <Input
-                id="account"
-                placeholder="01712345678"
-                value={accountNumber}
-                onChange={(e) => setAccountNumber(e.target.value)}
-              />
-            </div>
-
-            {/* Fee Calculation */}
-            {amount && (
-              <Alert>
-                <Info className="h-4 w-4" />
-                <AlertDescription>
-                  <div className="space-y-1">
-                    <div className="flex justify-between">
-                      <span>উইথড্র পরিমাণ:</span>
-                      <span>৳{amount}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>ফি:</span>
-                      <span>৳{user.withdrawFee}</span>
-                    </div>
-                    <div className="flex justify-between font-bold">
-                      <span>আপনি পাবেন:</span>
-                      <span>৳{Math.max(0, Number.parseInt(amount) - user.withdrawFee)}</span>
-                    </div>
-                  </div>
-                </AlertDescription>
-              </Alert>
+      {/* Main Content */}
+      <main className="flex-1 p-4 space-y-6 overflow-auto">
+        {message && (
+          <div
+            className={`flex items-center gap-2 p-3 rounded-md ${
+              message.type === "success" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+            }`}
+          >
+            {message.type === "success" ? (
+              <CheckCircle className="h-5 w-5" />
+            ) : (
+              <XCircle className="h-5 w-5" />
             )}
+            <span className="text-sm bangla-text">{message.text}</span>
+          </div>
+        )}
 
-            <Button
-              className="w-full"
-              size="lg"
-              disabled={!amount || !accountNumber || Number.parseInt(amount) < user.minWithdraw}
-              onClick={handleWithdraw}
-            >
-              উইথড্র রিকোয়েস্ট পাঠান
-            </Button>
+        {/* Current Balance */}
+        <Card className="bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg rounded-xl">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Banknote className="h-6 w-6" />
+              <span className="text-lg font-semibold bangla-text">আপনার বর্তমান ব্যালেন্স</span>
+            </div>
+            <span className="text-3xl font-bold bangla-text">৳{user.balance.toFixed(2)}</span>
           </CardContent>
         </Card>
-      )}
 
-      {/* Withdraw Conditions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>উইথড্র শর্তাবলী</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2 text-sm">
-            <div className="flex items-start gap-2">
-              <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
-              <span>সর্বনিম্ন উইথড্র পরিমাণ ৳{user.minWithdraw}</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
-              <span>প্রতি উইথড্রে ৳{user.withdrawFee} ফি প্রযোজ্য</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
-              <span>উইথড্র প্রক্রিয়া ২৪-৪৮ ঘন্টা সময় নিতে পারে</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
-              <span>OTP যাচাইকরণ প্রয়োজন</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        {/* Withdrawal Form */}
+        <Card className="bg-white shadow-md rounded-lg p-4 space-y-4">
+          <CardHeader>
+            <CardTitle className="text-lg font-bold text-gray-800 bangla-text">উত্তোলনের অনুরোধ</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleWithdraw} className="space-y-4">
+              <div>
+                <Label htmlFor="amount" className="bangla-text">উত্তোলনের পরিমাণ</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(parseFloat(e.target.value))}
+                  placeholder="পরিমাণ লিখুন"
+                  required
+                  className="mt-1 bangla-text"
+                  min={0}
+                  step="any"
+                />
+              </div>
+              <div>
+                <Label htmlFor="method" className="bangla-text">উত্তোলনের পদ্ধতি</Label>
+                <Select value={method} onValueChange={setMethod} required>
+                  <SelectTrigger className="w-full mt-1 bangla-text">
+                    <SelectValue placeholder="পদ্ধতি নির্বাচন করুন" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bkash" className="bangla-text">বিকাশ</SelectItem>
+                    <SelectItem value="nagad" className="bangla-text">নগদ</SelectItem>
+                    <SelectItem value="rocket" className="bangla-text">রকেট</SelectItem>
+                    <SelectItem value="bank" className="bangla-text">ব্যাংক ট্রান্সফার</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="accountDetails" className="bangla-text">অ্যাকাউন্ট বিবরণ (যেমন: ফোন নম্বর বা ব্যাংক অ্যাকাউন্ট)</Label>
+                <Input
+                  id="accountDetails"
+                  type="text"
+                  value={accountDetails}
+                  onChange={(e) => setAccountDetails(e.target.value)}
+                  placeholder="অ্যাকাউন্ট বিবরণ লিখুন"
+                  required
+                  className="mt-1 bangla-text"
+                />
+              </div>
+              <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 bangla-text" disabled={loadingWithdrawal}>
+                {loadingWithdrawal ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    জমা দেওয়া হচ্ছে...
+                  </>
+                ) : (
+                  "অনুরোধ জমা দিন"
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Withdrawal History (Placeholder) */}
+        <h2 className="text-xl font-bold text-gray-800 bangla-text">উত্তোলনের ইতিহাস</h2>
+        <Card className="p-4 text-center text-gray-600 bangla-text">
+          কোন উত্তোলনের ইতিহাস নেই।
+        </Card>
+      </main>
     </div>
   )
 }

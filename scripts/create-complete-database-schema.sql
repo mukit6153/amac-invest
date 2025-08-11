@@ -316,3 +316,6 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
 
 CREATE TRIGGER update_system_settings_updated_at BEFORE UPDATE ON system_settings
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- This file is superseded by create-database-schema.sql and is kept for historical context.
+-- Please refer to scripts/create-database-schema.sql for the most up-to-date schema.

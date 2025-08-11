@@ -4,92 +4,81 @@ import { useState, useEffect } from "react"
 import SplashScreen from "./components/splash-screen"
 import AuthScreen from "./components/auth-screen"
 import CompleteHomeScreen from "./components/complete-home-screen"
-import InvestmentScreen from "./components/investment-screen"
-import type { User } from "./lib/database"
+import { User, authFunctions, subscribeToUserUpdates } from "./lib/database"
+import { useSound } from "./hooks/use-sound"
+import { useBackgroundMusic } from "./hooks/use-background-music"
 
-export default function Home() {
-  const [currentScreen, setCurrentScreen] = useState<"splash" | "auth" | "home" | "investment">("splash")
-  const [user, setUser] = useState<User | null>(null)
+export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true)
+  const [user, setUser] = useState<User | null>(null)
+  const { playSound } = useSound()
+  const { isPlaying, toggleMusic, playMusic, stopMusic } = useBackgroundMusic()
 
   useEffect(() => {
-    // Check if user is already logged in
-    const savedUser = localStorage.getItem("amac_user")
-    if (savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser)
-        setUser(parsedUser)
-        setCurrentScreen("home")
-      } catch (error) {
-        console.error("Error parsing saved user:", error)
-        localStorage.removeItem("amac_user")
+    const checkUser = async () => {
+      const storedUserId = localStorage.getItem("currentUserId")
+      if (storedUserId) {
+        try {
+          const fetchedUser = await authFunctions.getCurrentUser(storedUserId)
+          if (fetchedUser) {
+            setUser(fetchedUser)
+          } else {
+            localStorage.removeItem("currentUserId")
+          }
+        } catch (error) {
+          console.error("Failed to fetch user:", error)
+          localStorage.removeItem("currentUserId")
+        }
       }
+      setIsLoading(false)
     }
 
-    // Show splash screen for 3 seconds
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-      if (!savedUser) {
-        setCurrentScreen("auth")
-      }
-    }, 3000)
-
-    return () => clearTimeout(timer)
+    checkUser()
   }, [])
 
-  const handleLogin = (userData: User) => {
-    setUser(userData)
-    localStorage.setItem("amac_user", JSON.stringify(userData))
-    setCurrentScreen("home")
+  useEffect(() => {
+    if (user?.id) {
+      const channel = subscribeToUserUpdates(user.id, (payload) => {
+        if (payload.new) {
+          setUser(payload.new as User)
+        }
+      })
+      return () => {
+        channel.unsubscribe()
+      }
+    }
+  }, [user?.id])
+
+  const handleLoginSuccess = (loggedInUser: User) => {
+    setUser(loggedInUser)
+    localStorage.setItem("currentUserId", loggedInUser.id)
+    playSound("success")
+    playMusic("peaceful") // Start background music on login
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await authFunctions.signOut()
     setUser(null)
-    localStorage.removeItem("amac_user")
-    setCurrentScreen("auth")
+    localStorage.removeItem("currentUserId")
+    playSound("click")
+    stopMusic() // Stop background music on logout
   }
 
-  const handleUserUpdate = (updatedUser: User) => {
-    setUser(updatedUser)
-    localStorage.setItem("amac_user", JSON.stringify(updatedUser))
-  }
-
-  const handleNavigateToInvestment = () => {
-    setCurrentScreen("investment")
-  }
-
-  const handleBackToHome = () => {
-    setCurrentScreen("home")
-  }
-
-  if (currentScreen === "splash" || isLoading) {
+  if (isLoading) {
     return <SplashScreen />
   }
 
-  if (currentScreen === "auth") {
-    return <AuthScreen onLogin={handleLogin} />
+  if (!user) {
+    return <AuthScreen onLoginSuccess={handleLoginSuccess} />
   }
 
-  if (currentScreen === "investment" && user) {
-    return (
-      <InvestmentScreen 
-        user={user} 
-        onBack={handleBackToHome}
-        onUserUpdate={handleUserUpdate}
-      />
-    )
-  }
-
-  if (currentScreen === "home" && user) {
-    return (
-      <CompleteHomeScreen
-        user={user}
-        onLogout={handleLogout}
-        onUserUpdate={handleUserUpdate}
-        onNavigateToInvestment={handleNavigateToInvestment}
-      />
-    )
-  }
-
-  return <AuthScreen onLogin={handleLogin} />
+  return (
+    <CompleteHomeScreen
+      user={user}
+      onUserUpdate={setUser}
+      onLogout={handleLogout}
+      isMusicPlaying={isPlaying}
+      toggleMusic={toggleMusic}
+    />
+  )
 }

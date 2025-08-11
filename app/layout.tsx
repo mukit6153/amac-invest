@@ -1,34 +1,46 @@
 import type { Metadata } from "next"
-import { Inter, Noto_Sans_Bengali } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import "./globals.css"
+import { ThemeProvider } from "@/components/theme-provider"
+import { SoundProvider } from "./hooks/use-sound"
+import { HapticProvider } from "./hooks/use-haptic"
+import { VoiceProvider } from "./hooks/use-voice"
+import { BackgroundMusicProvider } from "./hooks/use-background-music"
+import { Toaster } from "@/components/ui/toaster"
 
-const inter = Inter({ 
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap"
-})
-
-const notoSansBengali = Noto_Sans_Bengali({ 
-  subsets: ["bengali"],
-  variable: "--font-bengali",
-  display: "swap"
-})
+const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "AMAC Investment - বাংলাদেশের নম্বর ১ বিনিয়োগ প্ল্যাটফর্ম",
-  description: "AMAC Investment এ বিনিয়োগ করুন এবং দৈনিক রিটার্ন পান। নিরাপদ ও লাভজনক বিনিয়োগের জন্য আজই যোগ দিন।",
+  title: "AMAC Investment App",
+  description: "A modern investment platform with daily tasks, spin wheel, and more.",
     generator: 'v0.dev'
 }
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode
-}) {
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html lang="bn" className={`${inter.variable} ${notoSansBengali.variable}`}>
-      <body className="font-sans antialiased">
-        {children}
+    <html lang="en">
+      <body className={inter.className}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <SoundProvider>
+            <HapticProvider>
+              <VoiceProvider>
+                <BackgroundMusicProvider>
+                  {children}
+                </BackgroundMusicProvider>
+              </VoiceProvider>
+            </HapticProvider>
+          </SoundProvider>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   )

@@ -1,25 +1,40 @@
-"use client"
+import { useCallback } from 'react'
 
-import { useCallback } from "react"
+type HapticType = 'click' | 'success' | 'error' | 'notification' | 'reward'
 
-export function useHaptic() {
-  const vibrate = useCallback((pattern: number | number[]) => {
-    if ("vibrate" in navigator) {
+export const useHaptic = () => {
+  const hapticFeedback = useCallback((type: HapticType = 'click') => {
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      let pattern: number[] = []
+      switch (type) {
+        case 'click':
+          pattern = [50] // Short vibration
+          break
+        case 'success':
+          pattern = [100, 50, 100] // Double pulse
+          break
+        case 'error':
+          pattern = [200, 100, 200] // Longer, distinct pulse
+          break
+        case 'notification':
+          pattern = [70, 30, 70] // Quick double tap
+          break
+        case 'reward':
+          pattern = [50, 20, 50, 20, 50] // Multiple short pulses
+          break
+        default:
+          pattern = [50]
+      }
       navigator.vibrate(pattern)
+    } else {
+      console.warn("Haptic feedback not supported on this device.")
     }
   }, [])
 
-  const hapticFeedback = {
-    light: () => vibrate(10),
-    medium: () => vibrate(50),
-    heavy: () => vibrate(100),
-    success: () => vibrate([50, 50, 100]),
-    error: () => vibrate([100, 50, 100, 50, 100]),
-    notification: () => vibrate([200, 100, 200]),
-    click: () => vibrate(25),
-    spin: () => vibrate([100, 50, 100, 50, 100, 50, 200]),
-    reward: () => vibrate([200, 100, 200, 100, 300]),
-  }
+  return { hapticFeedback }
+}
 
-  return { vibrate, hapticFeedback }
+export const HapticProvider = ({ children }: { children: React.ReactNode }) => {
+  // This component is primarily for context if needed, but useHaptic hook manages its own state.
+  return <>{children}</>
 }

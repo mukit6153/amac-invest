@@ -6,14 +6,13 @@ import { SoundProvider } from "./hooks/use-sound"
 import { HapticProvider } from "./hooks/use-haptic"
 import { VoiceProvider } from "./hooks/use-voice"
 import { BackgroundMusicProvider } from "./hooks/use-background-music"
-import { Toaster } from "@/components/ui/toaster"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "AMAC Investment App",
   description: "A modern investment platform with daily tasks, spin wheel, and more.",
-    generator: 'v0.dev'
+    generator: 'v0.app'
 }
 
 export default function RootLayout({
@@ -39,7 +38,6 @@ export default function RootLayout({
               </VoiceProvider>
             </HapticProvider>
           </SoundProvider>
-          <Toaster />
         </ThemeProvider>
       </body>
     </html>

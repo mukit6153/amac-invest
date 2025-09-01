@@ -1,28 +1,14 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import { User } from '@/app/lib/database'
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
-import { Button } from '@/components/ui/button'
-import { MenuIcon, HomeIcon, DollarSignIcon, GiftIcon, RefreshCwIcon, UsersIcon, StoreIcon, SettingsIcon, LogOutIcon, BriefcaseIcon, CrownIcon } from 'lucide-react'
-import Link from 'next/link'
-import HomeScreen from './home-screen'
-import InvestmentScreen from './investment-screen'
-import TasksScreen from './tasks-screen'
-import SpinWheelScreen from './spin-wheel-screen'
-import FreeGiftScreen from './free-gift-screen'
-import ReferralScreen from './referral-screen'
-import ProductStoreScreen from './product-store-screen'
-import AdminPanelScreen from './admin-panel-screen'
-import ProfileScreen from './profile-screen'
-import SettingsScreen from './settings-screen'
-import InternTasksScreen from './intern-tasks-screen'
-import SoundButton from './sound-button'
-import { useSound } from '@/app/hooks/use-sound'
-import { useHaptic } from '@/app/hooks/use-haptic'
-import { useVoice } from '@/app/hooks/use-voice'
-import { useBackgroundMusic } from '@/app/hooks/use-background-music'
-import { toast } from '@/components/ui/use-toast'
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { User } from "@/app/lib/database"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { DollarSign, Wallet, TrendingUp, Briefcase, Gift, Users, Settings, Volume2, VolumeX, Bell, Home, LayoutDashboard, Store, Handshake, PiggyBank, Eye, EyeOff } from 'lucide-react'
+import Image from "next/image"
+import { useSound } from "@/app/hooks/use-sound"
+import SoundButton from "./sound-button"
 
 interface CompleteHomeScreenProps {
   user: User
@@ -33,167 +19,171 @@ interface CompleteHomeScreenProps {
 }
 
 export default function CompleteHomeScreen({ user, onUserUpdate, onLogout, isMusicPlaying, toggleMusic }: CompleteHomeScreenProps) {
-  const [activeScreen, setActiveScreen] = useState('home')
+  const router = useRouter()
+  const [showBalance, setShowBalance] = useState(true)
   const { playSound } = useSound()
-  const { vibrate } = useHaptic()
-  const { speak } = useVoice()
 
-  const renderScreen = () => {
-    switch (activeScreen) {
-      case 'home':
-        return <HomeScreen user={user} onUserUpdate={onUserUpdate} />
-      case 'investment':
-        return <InvestmentScreen user={user} onUserUpdate={onUserUpdate} />
-      case 'tasks':
-        return <TasksScreen user={user} onUserUpdate={onUserUpdate} />
-      case 'intern-tasks':
-        return <InternTasksScreen user={user} onUserUpdate={onUserUpdate} />
-      case 'spin-wheel':
-        return <SpinWheelScreen user={user} onUserUpdate={onUserUpdate} />
-      case 'free-gift':
-        return <FreeGiftScreen user={user} onUserUpdate={onUserUpdate} />
-      case 'referral':
-        return <ReferralScreen user={user} onUserUpdate={onUserUpdate} />
-      case 'product-store':
-        return <ProductStoreScreen user={user} onUserUpdate={onUserUpdate} />
-      case 'admin-panel':
-        return user.is_admin ? <AdminPanelScreen user={user} /> : <p className="p-4 text-red-500">Access Denied</p>
-      case 'profile':
-        return <ProfileScreen user={user} onUserUpdate={onUserUpdate} />
-      case 'settings':
-        return <SettingsScreen user={user} onUserUpdate={onUserUpdate} isMusicPlaying={isMusicPlaying} toggleMusic={toggleMusic} />
-      default:
-        return <HomeScreen user={user} onUserUpdate={onUserUpdate} />
-    }
-  }
+  const quickActions = [
+    { name: "বিনিয়োগ", icon: TrendingUp, href: "/investment" },
+    { name: "টাস্ক", icon: Briefcase, href: "/tasks" },
+    { name: "ফ্রি গিফট", icon: Gift, href: "/free-gift" },
+    { name: "রেফারেল", icon: Users, href: "/referral" },
+  ]
 
-  const handleNavigation = (screen: string, speakText: string) => {
-    setActiveScreen(screen)
-    playSound('click')
-    vibrate('light')
-    speak(speakText)
-  }
+  const navItems = [
+    { name: "হোম", icon: Home, href: "/" },
+    { name: "বিনিয়োগ", icon: PiggyBank, href: "/investment" },
+    { name: "টাস্ক", icon: LayoutDashboard, href: "/tasks" },
+    { name: "স্টোর", icon: Store, href: "/product-store" },
+    { name: "রেফারেল", icon: Handshake, href: "/referral" },
+  ]
 
-  const handleLogoutClick = () => {
-    vibrate('medium')
-    playSound('click')
-    speak('Logging out. Goodbye!')
-    onLogout()
-    toast({
-      title: 'Logged Out',
-      description: 'You have been successfully logged out.',
-      variant: 'default',
-    })
+  const handleNavigation = (href: string) => {
+    playSound("click")
+    router.push(href)
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col">
-      <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-10">
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="shrink-0 md:hidden"
-              aria-label="Open navigation menu"
-              onClick={() => { playSound('click'); vibrate('light') }}
-            >
-              <MenuIcon className="h-5 w-5" />
-              <span className="sr-only">Toggle navigation menu</span>
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="flex flex-col">
-            <nav className="grid gap-2 text-lg font-medium">
-              <Link href="#" className="flex items-center gap-2 text-lg font-semibold mb-4">
-                <DollarSignIcon className="h-6 w-6" />
-                <span>AMAC Investment</span>
-              </Link>
-              <Button variant="ghost" className="justify-start" onClick={() => handleNavigation('home', 'Home Screen')}>
-                <HomeIcon className="h-5 w-5 mr-3" />
-                Home
-              </Button>
-              <Button variant="ghost" className="justify-start" onClick={() => handleNavigation('investment', 'Investment Packages')}>
-                <DollarSignIcon className="h-5 w-5 mr-3" />
-                Investment
-              </Button>
-              <Button variant="ghost" className="justify-start" onClick={() => handleNavigation('tasks', 'Daily Tasks')}>
-                <BriefcaseIcon className="h-5 w-5 mr-3" />
-                Daily Tasks
-              </Button>
-              <Button variant="ghost" className="justify-start" onClick={() => handleNavigation('intern-tasks', 'Intern Tasks')}>
-                <BriefcaseIcon className="h-5 w-5 mr-3" />
-                Intern Tasks
-              </Button>
-              <Button variant="ghost" className="justify-start" onClick={() => handleNavigation('spin-wheel', 'Spin Wheel')}>
-                <RefreshCwIcon className="h-5 w-5 mr-3" />
-                Spin Wheel
-              </Button>
-              <Button variant="ghost" className="justify-start" onClick={() => handleNavigation('free-gift', 'Free Gift')}>
-                <GiftIcon className="h-5 w-5 mr-3" />
-                Free Gift
-              </Button>
-              <Button variant="ghost" className="justify-start" onClick={() => handleNavigation('referral', 'Referral System')}>
-                <UsersIcon className="h-5 w-5 mr-3" />
-                Referral
-              </Button>
-              <Button variant="ghost" className="justify-start" onClick={() => handleNavigation('product-store', 'Product Store')}>
-                <StoreIcon className="h-5 w-5 mr-3" />
-                Product Store
-              </Button>
-              {user.is_admin && (
-                <Button variant="ghost" className="justify-start" onClick={() => handleNavigation('admin-panel', 'Admin Panel')}>
-                  <CrownIcon className="h-5 w-5 mr-3" />
-                  Admin Panel
-                </Button>
-              )}
-              <Button variant="ghost" className="justify-start" onClick={() => handleNavigation('profile', 'Profile')}>
-                <UsersIcon className="h-5 w-5 mr-3" />
-                Profile
-              </Button>
-              <Button variant="ghost" className="justify-start" onClick={() => handleNavigation('settings', 'Settings')}>
-                <SettingsIcon className="h-5 w-5 mr-3" />
-                Settings
-              </Button>
-              <Button variant="ghost" className="justify-start text-red-500" onClick={handleLogoutClick}>
-                <LogOutIcon className="h-5 w-5 mr-3" />
-                Logout
-              </Button>
-            </nav>
-          </SheetContent>
-        </Sheet>
-        <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
-          <Link href="#" className="flex items-center gap-2 text-lg font-semibold">
-            <DollarSignIcon className="h-6 w-6" />
-            <span className="sr-only">AMAC Investment</span>
-          </Link>
-          <Button variant="ghost" onClick={() => handleNavigation('home', 'Home Screen')}>Home</Button>
-          <Button variant="ghost" onClick={() => handleNavigation('investment', 'Investment Packages')}>Investment</Button>
-          <Button variant="ghost" onClick={() => handleNavigation('tasks', 'Daily Tasks')}>Daily Tasks</Button>
-          <Button variant="ghost" onClick={() => handleNavigation('intern-tasks', 'Intern Tasks')}>Intern Tasks</Button>
-          <Button variant="ghost" onClick={() => handleNavigation('spin-wheel', 'Spin Wheel')}>Spin Wheel</Button>
-          <Button variant="ghost" onClick={() => handleNavigation('free-gift', 'Free Gift')}>Free Gift</Button>
-          <Button variant="ghost" onClick={() => handleNavigation('referral', 'Referral System')}>Referral</Button>
-          <Button variant="ghost" onClick={() => handleNavigation('product-store', 'Product Store')}>Product Store</Button>
-          {user.is_admin && (
-            <Button variant="ghost" onClick={() => handleNavigation('admin-panel', 'Admin Panel')}>Admin Panel</Button>
-          )}
-          <Button variant="ghost" onClick={() => handleNavigation('profile', 'Profile')}>Profile</Button>
-          <Button variant="ghost" onClick={() => handleNavigation('settings', 'Settings')}>Settings</Button>
-        </nav>
-        <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
-          <div className="ml-auto flex-1 sm:flex-initial">
-            <span className="font-medium">Balance: ${user.wallet_balance.toFixed(2)}</span>
-          </div>
-          <Button variant="ghost" onClick={handleLogoutClick}>
-            <LogOutIcon className="h-5 w-5 mr-2" />
-            Logout
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col">
+      {/* Header */}
+      <header className="bg-white p-4 shadow-md flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Image src="/amac-logo.png" alt="AMAC Logo" width={40} height={40} />
+          <h1 className="text-xl font-bold text-gray-800 bangla-text">এএমএসি ইনভেস্টমেন্ট</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={() => { playSound("click"); /* Handle notifications */ }}>
+            <Bell className="h-5 w-5 text-gray-600" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={toggleMusic}>
+            {isMusicPlaying ? (
+              <Volume2 className="h-5 w-5 text-gray-600" />
+            ) : (
+              <VolumeX className="h-5 w-5 text-gray-600" />
+            )}
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => { playSound("click"); router.push("/profile") }}>
+            <Image
+              src="/placeholder.svg?height=32&width=32"
+              alt="User Avatar"
+              width={32}
+              height={32}
+              className="rounded-full"
+            />
           </Button>
         </div>
       </header>
-      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
-        {renderScreen()}
+
+      {/* Main Content */}
+      <main className="flex-1 p-4 space-y-6 overflow-auto">
+        {/* Balance Card */}
+        <Card className="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg rounded-xl">
+          <CardContent className="p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wallet className="h-6 w-6" />
+                <span className="text-lg font-semibold bangla-text">মোট ব্যালেন্স</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => { playSound("click"); setShowBalance(!showBalance) }}
+                className="text-white/80 hover:bg-white/20"
+              >
+                {showBalance ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+              </Button>
+            </div>
+            <div className="text-4xl font-bold bangla-text">
+              ৳{showBalance ? user.balance.toFixed(2) : "******"}
+            </div>
+            <div className="flex justify-between text-sm opacity-90">
+              <div className="flex items-center gap-1">
+                <TrendingUp className="h-4 w-4" />
+                <span className="bangla-text">বিনিয়োগ: ৳{user.invested.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <DollarSign className="h-4 w-4" />
+                <span className="bangla-text">লেভেল: {user.level}</span>
+              </div>
+            </div>
+            <Button className="w-full bg-white text-blue-600 hover:bg-gray-100 bangla-text" onClick={() => handleNavigation("/withdraw")}>
+              উত্তোলন করুন
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {quickActions.map((action) => (
+            <Card key={action.name} className="text-center shadow-md hover:shadow-lg transition-shadow duration-200 cursor-pointer" onClick={() => handleNavigation(action.href)}>
+              <CardContent className="p-4 flex flex-col items-center justify-center">
+                <action.icon className="h-8 w-8 text-blue-600 mb-2" />
+                <span className="text-sm font-medium text-gray-700 bangla-text">{action.name}</span>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Banner Carousel (Placeholder) */}
+        <Card className="bg-white shadow-md rounded-xl overflow-hidden">
+          <CardContent className="p-0">
+            <div className="w-full h-40 bg-gray-200 flex items-center justify-center text-gray-500 bangla-text">
+              <Image
+                src="/placeholder.svg?height=160&width=600"
+                alt="Banner Carousel"
+                width={600}
+                height={160}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Investment Packages (Placeholder) */}
+        <h2 className="text-xl font-bold text-gray-800 bangla-text">জনপ্রিয় বিনিয়োগ প্যাকেজ</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card className="bg-white shadow-md rounded-lg">
+            <CardContent className="p-4 space-y-2">
+              <h3 className="font-semibold text-blue-600 bangla-text">স্টার্টার প্যাকেজ</h3>
+              <p className="text-sm text-gray-700 bangla-text">দৈনিক ৩% রিটার্ন, ৩০ দিনের জন্য।</p>
+              <div className="flex items-center justify-between text-sm text-gray-600">
+                <span className="bangla-text">৳৫০০ - ৳২০০০</span>
+                <Button variant="outline" size="sm" className="bangla-text" onClick={() => handleNavigation("/investment")}>
+                  বিনিয়োগ করুন
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-white shadow-md rounded-lg">
+            <CardContent className="p-4 space-y-2">
+              <h3 className="font-semibold text-blue-600 bangla-text">প্রিমিয়াম প্যাকেজ</h3>
+              <p className="text-sm text-gray-700 bangla-text">দৈনিক ৪% রিটার্ন, ৩০ দিনের জন্য।</p>
+              <div className="flex items-center justify-between text-sm text-gray-600">
+                <span className="bangla-text">৳২০০০ - ৳১০০০০</span>
+                <Button variant="outline" size="sm" className="bangla-text" onClick={() => handleNavigation("/investment")}>
+                  বিনিয়োগ করুন
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </main>
-      <SoundButton />
+
+      {/* Bottom Navigation */}
+      <nav className="bg-white p-3 shadow-lg flex justify-around border-t border-gray-200">
+        {navItems.map((item) => (
+          <Button
+            key={item.name}
+            variant="ghost"
+            className="flex flex-col items-center text-xs text-gray-600 data-[active=true]:text-blue-600"
+            data-active={router.pathname === item.href}
+            onClick={() => handleNavigation(item.href)}
+          >
+            <item.icon className="h-5 w-5 mb-1" />
+            <span className="bangla-text">{item.name}</span>
+          </Button>
+        ))}
+      </nav>
     </div>
   )
 }

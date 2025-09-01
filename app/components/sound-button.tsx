@@ -1,31 +1,74 @@
-'use client'
+"use client"
 
-import { Button } from '@/components/ui/button'
-import { Volume2, VolumeX } from 'lucide-react'
-import { useSound } from '@/app/hooks/use-sound'
-import { useHaptic } from '@/app/hooks/use-haptic'
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva, type VariantProps } from "class-variance-authority"
 
-export default function SoundButton() {
-  const { isSoundEnabled, toggleSound, playSound } = useSound()
-  const { vibrate } = useHaptic()
+import { cn } from "@/lib/utils"
+import { useSound } from "@/app/hooks/use-sound"
 
-  const handleClick = () => {
-    vibrate('light')
-    toggleSound()
-    if (!isSoundEnabled) { // If sound was just enabled, play a click sound
-      playSound('click')
-    }
-  }
+const buttonVariants = cva(
+  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-10 px-4 py-2",
+        sm: "h-9 rounded-md px-3",
+        lg: "h-11 rounded-md px-8",
+        icon: "h-10 w-10",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  },
+)
 
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={handleClick}
-      className="fixed bottom-4 right-4 z-50 bg-white/80 dark:bg-gray-900/80 rounded-full shadow-lg"
-      aria-label={isSoundEnabled ? 'Mute sounds' : 'Unmute sounds'}
-    >
-      {isSoundEnabled ? <Volume2 className="h-6 w-6" /> : <VolumeX className="h-6 w-6" />}
-    </Button>
-  )
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean
+  soundType?: "click" | "success" | "error" | "notification" | "coinCollect" | "spin" | "bonus"
+  enableHoverSound?: boolean
 }
+
+const SoundButton = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, soundType = "click", enableHoverSound = true, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button"
+    const { playSound } = useSound()
+
+    const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+      playSound(soundType)
+      props.onClick?.(event)
+    }
+
+    const handleMouseEnter = () => {
+      if (enableHoverSound) {
+        playSound("click") // Play a subtle click sound on hover
+      }
+    }
+
+    return (
+      <Comp
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        onClick={handleClick}
+        onMouseEnter={handleMouseEnter}
+        {...props}
+      />
+    )
+  },
+)
+SoundButton.displayName = "SoundButton"
+
+export default SoundButton
+export { SoundButton }

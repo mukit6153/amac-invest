@@ -1,21 +1,55 @@
-import ProfileScreen from '@/app/components/profile-screen'
-import { authFunctions } from '@/app/lib/database' // Assuming authFunctions are client-side safe
-import { redirect } from 'next/navigation'
-import { cookies } from 'next/headers'
-import { User } from '@/app/lib/database' // Import User type
+"use client"
 
-export default async function ProfilePage() {
-  const cookieStore = cookies()
-  const userId = cookieStore.get('currentUserId')?.value
+import ProfileScreen from "@/app/components/profile-screen"
+import { User } from "@/app/lib/database"
+import { useState, useEffect } from "react"
+import { authFunctions } from "@/app/lib/database"
+import { useRouter } from "next/navigation"
+import SplashScreen from "@/app/components/splash-screen"
+import { useSound } from "@/app/hooks/use-sound"
+import { useBackgroundMusic } from "@/app/hooks/use-background-music"
 
-  let user: User | null = null
-  if (userId) {
-    user = await authFunctions.getCurrentUser(userId)
+export default function ProfilePage() {
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
+  const { playSound } = useSound()
+  const { stopMusic } = useBackgroundMusic()
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const storedUserId = localStorage.getItem("currentUserId")
+      if (storedUserId) {
+        const fetchedUser = await authFunctions.getCurrentUser(storedUserId)
+        if (fetchedUser) {
+          setUser(fetchedUser)
+        } else {
+          router.replace("/auth/login")
+        }
+      } else {
+        router.replace("/auth/login")
+      }
+      setLoading(false)
+    }
+    fetchUser()
+  }, [router])
+
+  const handleLogout = async () => {
+    await authFunctions.signOut()
+    setUser(null)
+    localStorage.removeItem("currentUserId")
+    playSound("click")
+    stopMusic()
+    router.replace("/auth/login")
+  }
+
+  if (loading) {
+    return <SplashScreen />
   }
 
   if (!user) {
-    redirect('/auth/login')
+    return null // Should redirect by now
   }
 
-  return <ProfileScreen user={user} onUserUpdate={() => { /* client-side update logic */ }} />
+  return <ProfileScreen user={user} onUserUpdate={setUser} onLogout={handleLogout} />
 }

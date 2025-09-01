@@ -1,21 +1,42 @@
-import InvestmentScreen from '@/app/components/investment-screen'
-import { authFunctions } from '@/app/lib/database' // Assuming authFunctions are client-side safe
-import { redirect } from 'next/navigation'
-import { cookies } from 'next/headers'
-import { User } from '@/app/lib/database' // Import User type
+"use client"
 
-export default async function InvestmentPage() {
-  const cookieStore = cookies()
-  const userId = cookieStore.get('currentUserId')?.value
+import InvestmentScreen from "@/app/components/investment-screen"
+import { User } from "@/app/lib/database"
+import { useState, useEffect } from "react"
+import { authFunctions } from "@/app/lib/database"
+import { useRouter } from "next/navigation"
+import SplashScreen from "@/app/components/splash-screen"
 
-  let user: User | null = null
-  if (userId) {
-    user = await authFunctions.getCurrentUser(userId)
+export default function InvestmentPage() {
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const storedUserId = localStorage.getItem("currentUserId")
+      if (storedUserId) {
+        const fetchedUser = await authFunctions.getCurrentUser(storedUserId)
+        if (fetchedUser) {
+          setUser(fetchedUser)
+        } else {
+          router.replace("/auth/login")
+        }
+      } else {
+        router.replace("/auth/login")
+      }
+      setLoading(false)
+    }
+    fetchUser()
+  }, [router])
+
+  if (loading) {
+    return <SplashScreen />
   }
 
   if (!user) {
-    redirect('/auth/login')
+    return null // Should redirect by now
   }
 
-  return <InvestmentScreen user={user} onUserUpdate={() => { /* client-side update logic */ }} />
+  return <InvestmentScreen user={user} onUserUpdate={setUser} />
 }

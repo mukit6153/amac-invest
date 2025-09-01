@@ -1,143 +1,168 @@
-'use client'
+"use client"
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { GiftIcon } from 'lucide-react'
-import { User } from '@/app/lib/database'
-import { useSound } from '@/app/hooks/use-sound'
-import { useHaptic } from '@/app/hooks/use-haptic'
-import { toast } from '@/components/ui/use-toast'
-import Confetti from 'react-confetti'
-import { useWindowSize } from 'react-use'
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { ArrowLeft, Gift, DollarSign, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { useSound } from "@/app/hooks/use-sound"
+import { User, dataFunctions, subscribeToUserUpdates } from "@/app/lib/database"
 
 interface FreeGiftScreenProps {
   user: User
   onUserUpdate: (user: User) => void
 }
 
-const dummyFreeGifts = [
-  { id: 1, name: 'Welcome Gift', description: 'A special gift for new users!', reward_amount: 20, is_claimed: false },
-  { id: 2, name: 'Loyalty Bonus', description: 'Thank you for being a loyal user!', reward_amount: 10, is_claimed: false },
-  { id: 3, name: 'Referral Milestone', description: 'Bonus for reaching 5 referrals!', reward_amount: 30, is_claimed: true },
-]
-
 export default function FreeGiftScreen({ user, onUserUpdate }: FreeGiftScreenProps) {
-  const [freeGifts, setFreeGifts] = useState(dummyFreeGifts) // Using dummy data for now
-  const [loading, setLoading] = useState(false) // Set to false as using dummy data
-  const [showConfetti, setShowConfetti] = useState(false)
+  const router = useRouter()
+  const [canClaim, setCanClaim] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const { playSound } = useSound()
-  const { vibrate } = useHaptic()
-  const { width, height } = useWindowSize()
 
-  // In a real app, you would fetch gifts from the database and track claimed status per user
-  // useEffect(() => {
-  //   const fetchFreeGifts = async () => {
-  //     setLoading(true);
-  //     try {
-  //       const fetchedGifts = await dataFunctions.getFreeGifts(user.id); // Assuming a getFreeGifts function exists
-  //       setFreeGifts(fetchedGifts);
-  //     } catch (error) {
-  //       console.error('Error fetching free gifts:', error);
-  //       toast({
-  //         title: 'Error',
-  //         description: 'Failed to load free gifts.',
-  //         variant: 'destructive',
-  //       });
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   };
-  //   fetchFreeGifts();
-  // }, [user.id]);
+  const GIFT_AMOUNT = 50 // Example fixed gift amount
 
-  const handleClaimGift = (giftId: number, rewardAmount: number) => {
-    vibrate('heavy')
+  useEffect(() => {
+    const checkClaimStatus = async () => {
+      setLoading(true)
+      setMessage(null)
+      try {
+        // Simulate checking if the user has claimed the free gift today
+        // In a real app, this would be stored in Supabase (e.g., a 'last_free_gift_claim' timestamp on the user)
+        const lastClaimDate = localStorage.getItem(`lastFreeGiftClaim_${user.id}`)
+        const today = new Date().toDateString()
+
+        if (lastClaimDate === today) {
+          setCanClaim(false)
+        } else {
+          setCanClaim(true)
+        }
+      } catch (err: any) {
+        setMessage({ type: "error", text: err.message || "উপহারের স্থিতি পরীক্ষা করতে ব্যর্থ হয়েছে।" })
+      } finally {
+        setLoading(false)
+      }
+    }
+    checkClaimStatus()
+
+    if (user?.id) {
+      const channel = subscribeToUserUpdates(user.id, (payload) => {
+        if (payload.new) {
+          onUserUpdate(payload.new as User)
+        }
+      })
+      return () => {
+        channel.unsubscribe()
+      }
+    }
+  }, [user?.id, onUserUpdate])
+
+  const handleClaimGift = async () => {
+    playSound("click")
     setLoading(true)
+    setMessage(null)
     try {
-      // Simulate claiming the gift and updating user balance
-      const updatedGifts = freeGifts.map(gift =>
-        gift.id === giftId ? { ...gift, is_claimed: true } : gift
-      )
-      setFreeGifts(updatedGifts)
-      onUserUpdate({ ...user, wallet_balance: user.wallet_balance + rewardAmount })
-      playSound('bonus')
-      setShowConfetti(true)
-      toast({
-        title: 'Gift Claimed!',
-        description: `You received $${rewardAmount} from "${freeGifts.find(g => g.id === giftId)?.name}"!`,
-        variant: 'default',
-      })
-      setTimeout(() => setShowConfetti(false), 3000)
-      // In a real app, this would involve a server action to update database
-      // await claimFreeGiftAction(user.id, giftId);
-    } catch (error: any) {
-      console.error('Failed to claim gift:', error)
-      playSound('error')
-      toast({
-        title: 'Claim Failed',
-        description: error.message || 'An unexpected error occurred.',
-        variant: 'destructive',
-      })
+      // Simulate claiming gift and updating user balance
+      // In a real app, this would be a server-side function call
+      const { data, error } = await dataFunctions.supabase.from('users').update({ balance: user.balance + GIFT_AMOUNT }).eq('id', user.id)
+
+      if (error) throw error
+
+      onUserUpdate({ ...user, balance: user.balance + GIFT_AMOUNT })
+
+      // Mark gift as claimed for today
+      localStorage.setItem(`lastFreeGiftClaim_${user.id}`, new Date().toDateString())
+      setCanClaim(false)
+      setMessage({ type: "success", text: `অভিনন্দন! আপনি ৳${GIFT_AMOUNT} ফ্রি গিফট দাবি করেছেন!` })
+      playSound("bonus")
+    } catch (err: any) {
+      setMessage({ type: "error", text: err.message || "উপহার দাবি করতে ব্যর্থ হয়েছে।" })
+      playSound("error")
     } finally {
       setLoading(false)
+      setTimeout(() => setMessage(null), 3000)
     }
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <p>Loading free gifts...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
+        <p className="mt-3 text-gray-600 bangla-text">লোড হচ্ছে...</p>
       </div>
     )
   }
 
   return (
-    <div className="p-4 space-y-6 flex flex-col items-center">
-      {showConfetti && (
-        <Confetti
-          width={width}
-          height={height}
-          recycle={false}
-          numberOfPieces={500}
-          tweenDuration={3000}
-        />
-      )}
-      <h1 className="text-3xl font-bold text-center text-gray-800 dark:text-gray-50">Free Gifts</h1>
-      <p className="text-center text-gray-600 dark:text-gray-400">
-        Claim your special gifts and boost your wallet balance!
-      </p>
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 w-full max-w-4xl">
-        {freeGifts.length === 0 ? (
-          <p className="text-center text-gray-500 col-span-full">No free gifts available at the moment.</p>
-        ) : (
-          freeGifts.map((gift) => (
-            <Card key={gift.id} className="flex flex-col items-center text-center p-4">
-              <CardHeader>
-                <GiftIcon className="h-12 w-12 text-pink-500 mb-2" />
-                <CardTitle className="text-xl font-semibold">{gift.name}</CardTitle>
-              </CardHeader>
-              <CardContent className="flex-grow flex flex-col justify-between">
-                <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">{gift.description}</p>
-                <p className="text-lg font-bold text-green-600 dark:text-green-400 mb-4">
-                  Reward: ${gift.reward_amount}
-                </p>
-                <Button
-                  onClick={() => handleClaimGift(gift.id, gift.reward_amount)}
-                  disabled={gift.is_claimed || loading}
-                  className="w-full"
-                >
-                  {gift.is_claimed ? 'Claimed' : 'Claim Gift'}
-                </Button>
-                {gift.is_claimed && (
-                  <p className="text-xs text-green-600 dark:text-green-400 mt-2">You have already claimed this gift.</p>
-                )}
-              </CardContent>
-            </Card>
-          ))
-        )}
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Header */}
+      <div className="bg-white p-4 shadow-sm flex items-center justify-between">
+        <Button variant="ghost" size="icon" onClick={() => { playSound("click"); router.back() }}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <h1 className="text-xl font-bold bangla-text">ফ্রি গিফট</h1>
+        <div className="w-5 h-5" /> {/* Placeholder for alignment */}
       </div>
+
+      {/* Main Content */}
+      <main className="flex-1 p-4 space-y-6 flex flex-col items-center justify-center overflow-auto">
+        {message && (
+          <div
+            className={`flex items-center gap-2 p-3 rounded-md w-full max-w-md ${
+              message.type === "success" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+            }`}
+          >
+            {message.type === "success" ? (
+              <CheckCircle className="h-5 w-5" />
+            ) : (
+              <XCircle className="h-5 w-5" />
+            )}
+            <span className="text-sm bangla-text">{message.text}</span>
+          </div>
+        )}
+
+        <Card className="w-full max-w-md bg-white shadow-lg rounded-xl p-6 text-center">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-blue-700 bangla-text">দৈনিক ফ্রি গিফট!</CardTitle>
+            <p className="text-gray-600 bangla-text">প্রতিদিন একবার আপনার ফ্রি গিফট দাবি করুন।</p>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center space-y-6">
+            <Gift className="h-24 w-24 text-purple-600 animate-bounce" />
+            <p className="text-4xl font-bold text-green-600 bangla-text">৳{GIFT_AMOUNT}</p>
+            <Button
+              className="w-full bg-green-600 hover:bg-green-700 text-white py-3 text-lg bangla-text"
+              onClick={handleClaimGift}
+              disabled={!canClaim || loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  দাবি করা হচ্ছে...
+                </>
+              ) : canClaim ? (
+                <>
+                  <Gift className="mr-2 h-5 w-5" /> এখন দাবি করুন
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="mr-2 h-5 w-5" /> আজকের উপহার দাবি করা হয়েছে
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Current Balance */}
+        <Card className="w-full max-w-md bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg rounded-xl">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-6 w-6" />
+              <span className="text-lg font-semibold bangla-text">আপনার ব্যালেন্স</span>
+            </div>
+            <span className="text-3xl font-bold bangla-text">৳{user.balance.toFixed(2)}</span>
+          </CardContent>
+        </Card>
+      </main>
     </div>
   )
 }

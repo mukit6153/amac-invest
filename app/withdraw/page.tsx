@@ -8,35 +8,49 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, DollarSign, Banknote, CheckCircle, XCircle, Loader2 } from 'lucide-react'
-import { dataFunctions, authFunctions, User } from "@/app/lib/database"
-import WithdrawScreen from "@/app/components/withdraw-screen"
-import SplashScreen from "@/app/components/splash-screen"
+import { dataFunctions, User, subscribeToUserUpdates } from "@/app/lib/database"
 import { useSound } from "@/app/hooks/use-sound"
-import { redirect } from 'next/navigation'
-import { cookies } from 'next/headers'
+import WithdrawScreen from "@/app/components/withdraw-screen"
+import { authFunctions } from "@/app/lib/database"
+import SplashScreen from "@/app/components/splash-screen"
 
 interface WithdrawScreenProps {
   user: User
   onUserUpdate: (user: User) => void
 }
 
-export default async function WithdrawPage() {
-  const cookieStore = cookies()
-  const userId = cookieStore.get('currentUserId')?.value
+export default function WithdrawPage() {
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
-  let user: User | null = null
-  if (userId) {
-    user = await authFunctions.getCurrentUser(userId)
+  useEffect(() => {
+    const fetchUser = async () => {
+      const storedUserId = localStorage.getItem("currentUserId")
+      if (storedUserId) {
+        const fetchedUser = await authFunctions.getCurrentUser(storedUserId)
+        if (fetchedUser) {
+          setUser(fetchedUser)
+        } else {
+          router.replace("/auth/login")
+        }
+      } else {
+        router.replace("/auth/login")
+      }
+      setLoading(false)
+    }
+    fetchUser()
+  }, [router])
+
+  if (loading) {
+    return <SplashScreen />
   }
 
   if (!user) {
-    redirect('/auth/login')
+    return null // Should redirect by now
   }
 
-  // This page is a client component wrapper for WithdrawScreen
-  // The actual data fetching and state management for the user will happen in the client component
-  // and passed down.
-  return <WithdrawScreen user={user} onUserUpdate={() => { /* client-side update logic */ }} />
+  return <WithdrawScreen user={user} onUserUpdate={setUser} />
 }
 
 function WithdrawScreen({ user, onUserUpdate }: WithdrawScreenProps) {
@@ -49,7 +63,7 @@ function WithdrawScreen({ user, onUserUpdate }: WithdrawScreenProps) {
 
   useEffect(() => {
     if (user?.id) {
-      const channel = authFunctions.subscribeToUserUpdates(user.id, (payload) => {
+      const channel = subscribeToUserUpdates(user.id, (payload) => {
         if (payload.new) {
           onUserUpdate(payload.new as User)
         }
@@ -112,7 +126,7 @@ function WithdrawScreen({ user, onUserUpdate }: WithdrawScreenProps) {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
       <div className="bg-white p-4 shadow-sm flex items-center justify-between">
-        <Button variant="ghost" size="icon" onClick={() => { playSound("click"); window.history.back() }}>
+        <Button variant="ghost" size="icon" onClick={() => { playSound("click"); router.back() }}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-xl font-bold bangla-text">উত্তোলন</h1>

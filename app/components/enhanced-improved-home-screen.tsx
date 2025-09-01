@@ -3,33 +3,46 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from '@/components/ui/button'
-import { DollarSignIcon, BriefcaseIcon, RefreshCwIcon, GiftIcon, UsersIcon, StoreIcon } from 'lucide-react'
-import { User } from '@/app/lib/database'
+import {
+  Home,
+  TrendingUp,
+  User,
+  Gift,
+  Wallet,
+  ShoppingBag,
+  CheckCircle,
+  Target,
+  Bell,
+  Settings,
+  ChevronDown,
+  Star,
+  Calendar,
+  Crown,
+  Sparkles,
+  ArrowRight,
+  Shield,
+  Verified,
+  Flame,
+  Volume2,
+  VolumeX,
+} from "lucide-react"
+import SoundButton from "./sound-button"
 import { useSound } from "../hooks/use-sound"
-import { useHaptic } from '@/app/hooks/use-haptic'
-import { useVoice } from '@/app/hooks/use-voice'
-import { toast } from '@/components/ui/use-toast'
 import EnhancedSpinWheelScreen from "./enhanced-spin-wheel-screen"
 import EnhancedEventsScreen from "./enhanced-events-screen"
 import EnhancedFreeGiftScreen from "./enhanced-free-gift-screen"
-import { SoundButton } from "./sound-button"
-
 interface EnhancedImprovedHomeScreenProps {
-  user: User
-  onUserUpdate: (user: User) => void
+  user: any
 }
 
-export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: EnhancedImprovedHomeScreenProps) {
+export default function EnhancedImprovedHomeScreen({ user }: EnhancedImprovedHomeScreenProps) {
   const [activeTab, setActiveTab] = useState("home")
   const [showDropdown, setShowDropdown] = useState<string | null>(null)
   const [currentSlide, setCurrentSlide] = useState(0)
   const [showLoginBonus, setShowLoginBonus] = useState(false)
   const [animateCards, setAnimateCards] = useState(false)
+  const [soundEnabled, setSoundEnabled] = useState(true)
   const { sounds } = useSound()
-  const { playSound } = useSound()
-  const { vibrate } = useHaptic()
-  const { speak } = useVoice()
 
   useEffect(() => {
     // Animate cards on load
@@ -68,7 +81,7 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
 
   const quickActions = [
     {
-      icon: BriefcaseIcon,
+      icon: Target,
       label: "Spin Wheel",
       labelBn: "স্পিন হুইল",
       color: "bg-gradient-to-r from-purple-500 to-pink-500",
@@ -81,7 +94,7 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
       ],
     },
     {
-      icon: BriefcaseIcon,
+      icon: Calendar,
       label: "Events",
       labelBn: "ইভেন্ট",
       color: "bg-gradient-to-r from-blue-500 to-cyan-500",
@@ -94,7 +107,7 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
       ],
     },
     {
-      icon: GiftIcon,
+      icon: Gift,
       label: "Free Gift",
       labelBn: "ফ্রি গিফট",
       color: "bg-gradient-to-r from-yellow-500 to-orange-500",
@@ -107,7 +120,7 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
       ],
     },
     {
-      icon: BriefcaseIcon,
+      icon: CheckCircle,
       label: "Daily Task",
       labelBn: "দৈনিক কাজ",
       color: "bg-gradient-to-r from-green-500 to-emerald-500",
@@ -120,7 +133,7 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
       ],
     },
     {
-      icon: DollarSignIcon,
+      icon: TrendingUp,
       label: "Invest Now",
       labelBn: "এখনই বিনিয়োগ",
       color: "bg-gradient-to-r from-indigo-500 to-purple-500",
@@ -133,7 +146,7 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
       ],
     },
     {
-      icon: StoreIcon,
+      icon: ShoppingBag,
       label: "Product Store",
       labelBn: "পণ্যের দোকান",
       color: "bg-gradient-to-r from-rose-500 to-pink-500",
@@ -149,36 +162,25 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
 
   const handleQuickAction = (action: any, dropdownItem?: any) => {
     setShowDropdown(null)
-    if (sounds.buttonClick) sounds.buttonClick()
+    if (soundEnabled) sounds.buttonClick()
     if (action.screen) {
       setActiveTab(action.screen)
     }
   }
 
   const toggleDropdown = (actionLabel: string) => {
-    if (sounds.buttonClick) sounds.buttonClick()
+    if (soundEnabled) sounds.buttonClick()
     setShowDropdown(showDropdown === actionLabel ? null : actionLabel)
   }
 
   const handleLoginBonus = () => {
-    if (sounds.rewardSmall) sounds.rewardSmall()
+    if (soundEnabled) sounds.rewardSmall()
     setShowLoginBonus(true)
   }
 
   const handleCloseLoginBonus = () => {
-    if (sounds.coinCollect) sounds.coinCollect()
+    if (soundEnabled) sounds.coinCollect()
     setShowLoginBonus(false)
-  }
-
-  const handleFeatureClick = (featureName: string) => {
-    playSound('click')
-    vibrate('light')
-    speak(`Navigating to ${featureName}`)
-    toast({
-      title: 'Navigation',
-      description: `You clicked on ${featureName}.`,
-      variant: 'default',
-    })
   }
 
   const renderHomeContent = () => (
@@ -216,11 +218,11 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
               {/* Trust Indicators */}
               <div className="absolute top-4 left-4 flex items-center gap-2">
                 <div className="bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 flex items-center gap-1">
-                  <BriefcaseIcon className="h-4 w-4 text-white" />
+                  <Shield className="h-4 w-4 text-white" />
                   <span className="text-xs text-white font-medium">নিরাপদ</span>
                 </div>
                 <div className="bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 flex items-center gap-1">
-                  <BriefcaseIcon className="h-4 w-4 text-white" />
+                  <Verified className="h-4 w-4 text-white" />
                   <span className="text-xs text-white font-medium">যাচাইকৃত</span>
                 </div>
               </div>
@@ -250,7 +252,7 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
           className={`bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700 text-white border-0 shadow-xl transform transition-all duration-700 hover:scale-105 cursor-pointer ${
             animateCards ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
           }`}
-          onClick={() => sounds.buttonClick && sounds.buttonClick()}
+          onClick={() => soundEnabled && sounds.buttonClick()}
         >
           <CardContent className="p-4 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-4 translate-x-4"></div>
@@ -259,12 +261,12 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
                 <p className="text-sm opacity-90 bangla-text">মোট ব্যালেন্স</p>
                 <p className="text-2xl font-bold">৳{user?.balance?.toLocaleString()}</p>
                 <div className="flex items-center gap-1 mt-1">
-                  <BriefcaseIcon className="h-3 w-3" />
+                  <TrendingUp className="h-3 w-3" />
                   <span className="text-xs opacity-80">+১২% আজকে</span>
                 </div>
               </div>
               <div className="bg-white/20 rounded-full p-3">
-                <BriefcaseIcon className="h-8 w-8" />
+                <Wallet className="h-8 w-8" />
               </div>
             </div>
           </CardContent>
@@ -274,7 +276,7 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
           className={`bg-gradient-to-br from-green-500 via-emerald-600 to-teal-700 text-white border-0 shadow-xl transform transition-all duration-700 delay-100 hover:scale-105 cursor-pointer ${
             animateCards ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
           }`}
-          onClick={() => sounds.buttonClick && sounds.buttonClick()}
+          onClick={() => soundEnabled && sounds.buttonClick()}
         >
           <CardContent className="p-4 relative overflow-hidden">
             <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/10 rounded-full translate-y-4 -translate-x-4"></div>
@@ -283,12 +285,12 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
                 <p className="text-sm opacity-90 bangla-text">দৈনিক আয়</p>
                 <p className="text-2xl font-bold">৳{user?.dailyEarning}</p>
                 <div className="flex items-center gap-1 mt-1">
-                  <BriefcaseIcon className="h-3 w-3" />
+                  <Star className="h-3 w-3" />
                   <span className="text-xs opacity-80">স্থিতিশীল</span>
                 </div>
               </div>
               <div className="bg-white/20 rounded-full p-3">
-                <BriefcaseIcon className="h-8 w-8" />
+                <TrendingUp className="h-8 w-8" />
               </div>
             </div>
           </CardContent>
@@ -300,7 +302,7 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold bangla-text">দ্রুত অ্যাকশন</h3>
           <Badge variant="outline" className="text-xs">
-            <BriefcaseIcon className="h-3 w-3 mr-1" />
+            <Sparkles className="h-3 w-3 mr-1" />
             নতুন ফিচার
           </Badge>
         </div>
@@ -326,7 +328,7 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
                   </div>
                   <span className="text-xs font-medium bangla-text text-center">{action.labelBn}</span>
                   {action.hasDropdown && (
-                    <BriefcaseIcon
+                    <ChevronDown
                       className={`h-3 w-3 text-gray-400 transition-transform ${
                         showDropdown === action.label ? "rotate-180" : ""
                       }`}
@@ -356,7 +358,7 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
                             </p>
                           </div>
                         </div>
-                        <BriefcaseIcon className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
+                        <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
                       </div>
                     </SoundButton>
                   ))}
@@ -370,13 +372,13 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
       {/* Enhanced Investment Status */}
       <Card
         className="shadow-lg border-0 bg-gradient-to-r from-gray-50 to-blue-50 hover:shadow-xl transition-shadow cursor-pointer"
-        onClick={() => sounds.buttonClick && sounds.buttonClick()}
+        onClick={() => soundEnabled && sounds.buttonClick()}
       >
         <CardHeader>
-          <div className="bg-blue-500 rounded-full p-2">
-            <BriefcaseIcon className="h-5 w-5 text-white" />
-          </div>
           <CardTitle className="flex items-center gap-2 bangla-text">
+            <div className="bg-blue-500 rounded-full p-2">
+              <TrendingUp className="h-5 w-5 text-white" />
+            </div>
             বিনিয়োগের অবস্থা
             <Badge className="bg-green-100 text-green-800 ml-auto">সক্রিয়</Badge>
           </CardTitle>
@@ -415,7 +417,7 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="bg-white/20 rounded-full p-3">
-                <BriefcaseIcon className="h-6 w-6" />
+                <Flame className="h-6 w-6" />
               </div>
               <div>
                 <p className="text-sm opacity-90 bangla-text">লগইন স্ট্রিক বোনাস</p>
@@ -430,7 +432,7 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
               onClick={handleLoginBonus}
               soundType="success"
             >
-              <GiftIcon className="h-4 w-4 mr-1" />
+              <Gift className="h-4 w-4 mr-1" />
               সংগ্রহ করুন
             </SoundButton>
           </div>
@@ -440,25 +442,25 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
       {/* Trust & Security Section */}
       <Card
         className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 hover:shadow-lg transition-shadow cursor-pointer"
-        onClick={() => sounds.buttonClick && sounds.buttonClick()}
+        onClick={() => soundEnabled && sounds.buttonClick()}
       >
         <CardContent className="p-4">
           <div className="flex items-center justify-center gap-6">
             <div className="text-center">
               <div className="bg-green-500 rounded-full p-2 w-fit mx-auto mb-2">
-                <BriefcaseIcon className="h-5 w-5 text-white" />
+                <Shield className="h-5 w-5 text-white" />
               </div>
               <p className="text-xs font-medium bangla-text">১০০% নিরাপদ</p>
             </div>
             <div className="text-center">
               <div className="bg-blue-500 rounded-full p-2 w-fit mx-auto mb-2">
-                <BriefcaseIcon className="h-5 w-5 text-white" />
+                <Verified className="h-5 w-5 text-white" />
               </div>
               <p className="text-xs font-medium bangla-text">যাচাইকৃত</p>
             </div>
             <div className="text-center">
               <div className="bg-purple-500 rounded-full p-2 w-fit mx-auto mb-2">
-                <BriefcaseIcon className="h-5 w-5 text-white" />
+                <Crown className="h-5 w-5 text-white" />
               </div>
               <p className="text-xs font-medium bangla-text">প্রিমিয়াম</p>
             </div>
@@ -490,12 +492,12 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
 
             <CardContent className="p-6 text-center relative z-10">
               <div className="w-20 h-20 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
-                <GiftIcon className="h-10 w-10 text-white" />
+                <Gift className="h-10 w-10 text-white" />
               </div>
               <div className="mb-4">
                 <div className="flex justify-center gap-1 mb-2">
                   {[...Array(5)].map((_, i) => (
-                    <BriefcaseIcon
+                    <Star
                       key={i}
                       className="h-5 w-5 text-yellow-500 fill-current animate-pulse"
                       style={{ animationDelay: `${i * 0.1}s` }}
@@ -511,7 +513,7 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
                 onClick={handleCloseLoginBonus}
                 soundType="success"
               >
-                <BriefcaseIcon className="h-4 w-4 mr-2" />
+                <Sparkles className="h-4 w-4 mr-2" />
                 ধন্যবাদ
               </SoundButton>
             </CardContent>
@@ -548,22 +550,22 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
             <SoundButton
               variant="outline"
               size="sm"
-              onClick={() => playSound('click')}
+              onClick={() => setSoundEnabled(!soundEnabled)}
               className="p-2"
-              soundType="click"
+              soundType={soundEnabled ? "click" : "success"}
             >
-              <BriefcaseIcon className="h-4 w-4" />
+              {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
             </SoundButton>
             <div className="relative">
               <SoundButton variant="outline" size="sm" className="p-2" soundType="notification">
-                <BriefcaseIcon className="h-5 w-5" />
+                <Bell className="h-5 w-5" />
               </SoundButton>
               <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
                 <span className="text-xs text-white font-bold">3</span>
               </div>
             </div>
             <SoundButton variant="outline" size="sm" className="p-2" soundType="click">
-              <BriefcaseIcon className="h-5 w-5" />
+              <Settings className="h-5 w-5" />
             </SoundButton>
           </div>
         </div>
@@ -575,107 +577,6 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
         {activeTab === "spin" && <EnhancedSpinWheelScreen />}
         {activeTab === "events" && <EnhancedEventsScreen />}
         {activeTab === "freegift" && <EnhancedFreeGiftScreen user={user} />}
-        {activeTab === "tasks" && (
-          <div className="p-4 space-y-6">
-            <h1 className="text-3xl font-bold text-center text-gray-800 dark:text-gray-50">Welcome, {user.email}!</h1>
-            <p className="text-center text-gray-600 dark:text-gray-400">
-              Your current wallet balance: <span className="font-semibold text-green-600 dark:text-green-400">${user.wallet_balance.toFixed(2)}</span>
-            </p>
-
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <Card className="flex flex-col items-center text-center p-4">
-                <CardHeader>
-                  <DollarSignIcon className="h-12 w-12 text-blue-500 mb-2" />
-                  <CardTitle className="text-xl font-semibold">Investment</CardTitle>
-                </CardHeader>
-                <CardContent className="flex-grow flex flex-col justify-between">
-                  <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">Explore various investment packages and grow your money.</p>
-                  <Button className="w-full" onClick={() => handleFeatureClick('Investment')}>
-                    Invest Now
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card className="flex flex-col items-center text-center p-4">
-                <CardHeader>
-                  <BriefcaseIcon className="h-12 w-12 text-purple-500 mb-2" />
-                  <CardTitle className="text-xl font-semibold">Daily Tasks</CardTitle>
-                </CardHeader>
-                <CardContent className="flex-grow flex flex-col justify-between">
-                  <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">Complete daily tasks to earn instant rewards.</p>
-                  <Button className="w-full" onClick={() => handleFeatureClick('Daily Tasks')}>
-                    View Tasks
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card className="flex flex-col items-center text-center p-4">
-                <CardHeader>
-                  <BriefcaseIcon className="h-12 w-12 text-orange-500 mb-2" />
-                  <CardTitle className="text-xl font-semibold">Intern Tasks</CardTitle>
-                </CardHeader>
-                <CardContent className="flex-grow flex flex-col justify-between">
-                  <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">Special tasks for interns to learn and earn more.</p>
-                  <Button className="w-full" onClick={() => handleFeatureClick('Intern Tasks')}>
-                    Start Intern Tasks
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card className="flex flex-col items-center text-center p-4">
-                <CardHeader>
-                  <RefreshCwIcon className="h-12 w-12 text-green-500 mb-2" />
-                  <CardTitle className="text-xl font-semibold">Spin Wheel</CardTitle>
-                </CardHeader>
-                <CardContent className="flex-grow flex flex-col justify-between">
-                  <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">Try your luck and win exciting prizes with our spin wheel.</p>
-                  <Button className="w-full" onClick={() => handleFeatureClick('Spin Wheel')}>
-                    Spin Now
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card className="flex flex-col items-center text-center p-4">
-                <CardHeader>
-                  <GiftIcon className="h-12 w-12 text-red-500 mb-2" />
-                  <CardTitle className="text-xl font-semibold">Free Gift</CardTitle>
-                </CardHeader>
-                <CardContent className="flex-grow flex flex-col justify-between">
-                  <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">Claim your daily free gifts and boost your balance.</p>
-                  <Button className="w-full" onClick={() => handleFeatureClick('Free Gift')}>
-                    Claim Gift
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card className="flex flex-col items-center text-center p-4">
-                <CardHeader>
-                  <UsersIcon className="h-12 w-12 text-indigo-500 mb-2" />
-                  <CardTitle className="text-xl font-semibold">Referral System</CardTitle>
-                </CardHeader>
-                <CardContent className="flex-grow flex flex-col justify-between">
-                  <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">Invite friends and earn bonuses for every successful referral.</p>
-                  <Button className="w-full" onClick={() => handleFeatureClick('Referral System')}>
-                    Refer Now
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card className="flex flex-col items-center text-center p-4">
-                <CardHeader>
-                  <StoreIcon className="h-12 w-12 text-yellow-500 mb-2" />
-                  <CardTitle className="text-xl font-semibold">Product Store</CardTitle>
-                </CardHeader>
-                <CardContent className="flex-grow flex flex-col justify-between">
-                  <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">Redeem your earnings for exciting products from our store.</p>
-                  <Button className="w-full" onClick={() => handleFeatureClick('Product Store')}>
-                    Shop Now
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Enhanced Bottom Navigation */}
@@ -683,17 +584,17 @@ export default function EnhancedImprovedHomeScreen({ user, onUserUpdate }: Enhan
         <div className="max-w-md mx-auto">
           <div className="grid grid-cols-5 gap-1 p-2">
             {[
-              { id: "home", icon: BriefcaseIcon, label: "Home", labelBn: "হোম", color: "from-blue-500 to-indigo-500" },
-              { id: "spin", icon: BriefcaseIcon, label: "Spin", labelBn: "স্পিন", color: "from-purple-500 to-pink-500" },
+              { id: "home", icon: Home, label: "Home", labelBn: "হোম", color: "from-blue-500 to-indigo-500" },
+              { id: "spin", icon: Target, label: "Spin", labelBn: "স্পিন", color: "from-purple-500 to-pink-500" },
               {
                 id: "events",
-                icon: BriefcaseIcon,
+                icon: Calendar,
                 label: "Events",
                 labelBn: "ইভেন্ট",
                 color: "from-green-500 to-emerald-500",
               },
-              { id: "freegift", icon: GiftIcon, label: "Gift", labelBn: "গিফট", color: "from-yellow-500 to-orange-500" },
-              { id: "profile", icon: BriefcaseIcon, label: "Profile", labelBn: "প্রোফাইল", color: "from-gray-500 to-gray-600" },
+              { id: "freegift", icon: Gift, label: "Gift", labelBn: "গিফট", color: "from-yellow-500 to-orange-500" },
+              { id: "profile", icon: User, label: "Profile", labelBn: "প্রোফাইল", color: "from-gray-500 to-gray-600" },
             ].map((tab) => (
               <SoundButton
                 key={tab.id}

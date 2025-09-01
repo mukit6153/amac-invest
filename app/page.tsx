@@ -4,15 +4,23 @@ import { useState, useEffect } from "react"
 import SplashScreen from "./components/splash-screen"
 import AuthScreen from "./components/auth-screen"
 import CompleteHomeScreen from "./components/complete-home-screen"
-import { User, authFunctions, subscribeToUserUpdates } from "./lib/database"
+import { type User, authFunctions, subscribeToUserUpdates } from "./lib/database"
 import { useSound } from "./hooks/use-sound"
 import { useBackgroundMusic } from "./hooks/use-background-music"
+import React from "react"
 
 export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [user, setUser] = useState<User | null>(null)
-  const { playSound } = useSound()
-  const { isPlaying, toggleMusic, playMusic, stopMusic } = useBackgroundMusic()
+
+  const soundHook = useSound()
+  const musicHook = useBackgroundMusic()
+
+  const playSound = soundHook.playSound
+  const isPlaying = musicHook.isPlaying
+  const toggleMusic = musicHook.toggleMusic
+  const playMusic = musicHook.playMusic
+  const stopMusic = musicHook.stopMusic
 
   useEffect(() => {
     const checkUser = async () => {
@@ -53,7 +61,7 @@ export default function HomePage() {
     setUser(loggedInUser)
     localStorage.setItem("currentUserId", loggedInUser.id)
     playSound("success")
-    playMusic("peaceful") // Start background music on login
+    playMusic("peaceful")
   }
 
   const handleLogout = async () => {
@@ -61,24 +69,22 @@ export default function HomePage() {
     setUser(null)
     localStorage.removeItem("currentUserId")
     playSound("click")
-    stopMusic() // Stop background music on logout
+    stopMusic()
   }
 
   if (isLoading) {
-    return <SplashScreen />
+    return React.createElement(SplashScreen)
   }
 
   if (!user) {
-    return <AuthScreen onLoginSuccess={handleLoginSuccess} />
+    return React.createElement(AuthScreen, { onLoginSuccess: handleLoginSuccess })
   }
 
-  return (
-    <CompleteHomeScreen
-      user={user}
-      onUserUpdate={setUser}
-      onLogout={handleLogout}
-      isMusicPlaying={isPlaying}
-      toggleMusic={toggleMusic}
-    />
-  )
+  return React.createElement(CompleteHomeScreen, {
+    user: user,
+    onUserUpdate: setUser,
+    onLogout: handleLogout,
+    isMusicPlaying: isPlaying,
+    toggleMusic: toggleMusic,
+  })
 }

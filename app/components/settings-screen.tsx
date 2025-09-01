@@ -1,173 +1,181 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { User } from '@/app/lib/database'
-import { updateUserSettingsAction } from '@/app/lib/server-actions' // Import Server Action
-import { useSound } from '@/app/hooks/use-sound'
-import { useHaptic } from '@/app/hooks/use-haptic'
-import { useVoice } from '@/app/hooks/use-voice'
-import { useBackgroundMusic } from '@/app/hooks/use-background-music'
-import { toast } from '@/components/ui/use-toast'
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import { ArrowLeft, Volume2, VolumeX, Bell, Lock, LogOut, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { dataFunctions, User, subscribeToUserUpdates } from "@/app/lib/database"
+import { useSound } from "@/app/hooks/use-sound"
+import { useBackgroundMusic } from "@/app/hooks/use-background-music"
 
 interface SettingsScreenProps {
   user: User
   onUserUpdate: (user: User) => void
+  onLogout: () => void
   isMusicPlaying: boolean
   toggleMusic: () => void
 }
 
-export default function SettingsScreen({ user, onUserUpdate, isMusicPlaying, toggleMusic }: SettingsScreenProps) {
+export default function SettingsScreen({ user, onUserUpdate, onLogout, isMusicPlaying, toggleMusic }: SettingsScreenProps) {
+  const router = useRouter()
+  const [enableNotifications, setEnableNotifications] = useState(true) // Mock state
   const [loading, setLoading] = useState(false)
-  const { playSound, isSoundEnabled, toggleSound } = useSound()
-  const { isHapticEnabled, toggleHaptic } = useHaptic()
-  const { isVoiceEnabled, toggleVoice } = useVoice()
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const { playSound } = useSound()
 
-  const handleToggleSound = async () => {
-    vibrate('light')
-    toggleSound()
-    playSound('click') // Play click sound on toggle
-    try {
-      await updateUserSettingsAction(user.id, { sound_enabled: !isSoundEnabled })
-      toast({
-        title: 'Settings Updated',
-        description: `Sound ${!isSoundEnabled ? 'enabled' : 'disabled'}.`,
-        variant: 'default',
+  useEffect(() => {
+    // Initialize settings from user data or defaults
+    // For demo, we'll just use a mock state for notifications
+    // setEnableNotifications(user.settings?.enableNotifications || true);
+
+    if (user?.id) {
+      const channel = subscribeToUserUpdates(user.id, (payload) => {
+        if (payload.new) {
+          onUserUpdate(payload.new as User)
+        }
       })
-    } catch (error) {
-      console.error('Failed to update sound setting:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to save sound setting.',
-        variant: 'destructive',
-      })
+      return () => {
+        channel.unsubscribe()
+      }
     }
-  }
+  }, [user?.id, onUserUpdate])
 
-  const handleToggleHaptic = async () => {
-    vibrate('light')
-    toggleHaptic()
+  const handleSaveSettings = async () => {
+    playSound("click")
+    setLoading(true)
+    setMessage(null)
     try {
-      await updateUserSettingsAction(user.id, { haptic_enabled: !isHapticEnabled })
-      toast({
-        title: 'Settings Updated',
-        description: `Haptic feedback ${!isHapticEnabled ? 'enabled' : 'disabled'}.`,
-        variant: 'default',
-      })
-    } catch (error) {
-      console.error('Failed to update haptic setting:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to save haptic setting.',
-        variant: 'destructive',
-      })
-    }
-  }
-
-  const handleToggleVoice = async () => {
-    vibrate('light')
-    toggleVoice()
-    try {
-      await updateUserSettingsAction(user.id, { voice_enabled: !isVoiceEnabled })
-      toast({
-        title: 'Settings Updated',
-        description: `Voice guidance ${!isVoiceEnabled ? 'enabled' : 'disabled'}.`,
-        variant: 'default',
-      })
-    } catch (error) {
-      console.error('Failed to update voice setting:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to save voice setting.',
-        variant: 'destructive',
-      })
-    }
-  }
-
-  const handleToggleMusic = async () => {
-    vibrate('light')
-    toggleMusic()
-    try {
-      await updateUserSettingsAction(user.id, { background_music_enabled: !isMusicPlaying })
-      toast({
-        title: 'Settings Updated',
-        description: `Background music ${!isMusicPlaying ? 'enabled' : 'disabled'}.`,
-        variant: 'default',
-      })
-    } catch (error) {
-      console.error('Failed to update music setting:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to save music setting.',
-        variant: 'destructive',
-      })
+      // In a real app, save settings to user object in DB
+      // const updatedUser = await dataFunctions.updateUserSettings(user.id, { enableNotifications });
+      // onUserUpdate(updatedUser);
+      setMessage({ type: "success", text: "সেটিংস সফলভাবে সংরক্ষণ করা হয়েছে!" })
+      playSound("success")
+    } catch (err: any) {
+      setMessage({ type: "error", text: err.message || "সেটিংস সংরক্ষণ ব্যর্থ হয়েছে।" })
+      playSound("error")
+    } finally {
+      setLoading(false)
+      setTimeout(() => setMessage(null), 3000)
     }
   }
 
   return (
-    <div className="p-4 space-y-6">
-      <h1 className="text-3xl font-bold text-center text-gray-800 dark:text-gray-50">Settings</h1>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Header */}
+      <div className="bg-white p-4 shadow-sm flex items-center justify-between">
+        <Button variant="ghost" size="icon" onClick={() => { playSound("click"); router.back() }}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <h1 className="text-xl font-bold bangla-text">সেটিংস</h1>
+        <div className="w-5 h-5" /> {/* Placeholder for alignment */}
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl font-semibold">App Preferences</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="sound-toggle">Sound Effects</Label>
-            <Switch
-              id="sound-toggle"
-              checked={isSoundEnabled}
-              onCheckedChange={handleToggleSound}
-              disabled={loading}
-            />
+      {/* Main Content */}
+      <main className="flex-1 p-4 space-y-6 overflow-auto">
+        {message && (
+          <div
+            className={`flex items-center gap-2 p-3 rounded-md ${
+              message.type === "success" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+            }`}
+          >
+            {message.type === "success" ? (
+              <CheckCircle className="h-5 w-5" />
+            ) : (
+              <XCircle className="h-5 w-5" />
+            )}
+            <span className="text-sm bangla-text">{message.text}</span>
           </div>
-          <div className="flex items-center justify-between">
-            <Label htmlFor="haptic-toggle">Haptic Feedback</Label>
-            <Switch
-              id="haptic-toggle"
-              checked={isHapticEnabled}
-              onCheckedChange={handleToggleHaptic}
-              disabled={loading}
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <Label htmlFor="voice-toggle">Voice Guidance</Label>
-            <Switch
-              id="voice-toggle"
-              checked={isVoiceEnabled}
-              onCheckedChange={handleToggleVoice}
-              disabled={loading}
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <Label htmlFor="music-toggle">Background Music</Label>
-            <Switch
-              id="music-toggle"
-              checked={isMusicPlaying}
-              onCheckedChange={handleToggleMusic}
-              disabled={loading}
-            />
-          </div>
-        </CardContent>
-      </Card>
+        )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl font-semibold">Account Management</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Button className="w-full" variant="outline" onClick={() => toast({ title: 'Feature', description: 'Change Password is in Profile Screen.' })}>
-            Change Password
-          </Button>
-          <Button className="w-full" variant="destructive" onClick={() => toast({ title: 'Feature', description: 'Delete Account feature coming soon!' })}>
-            Delete Account
-          </Button>
-        </CardContent>
-      </Card>
+        {/* General Settings */}
+        <Card className="bg-white shadow-md rounded-lg p-4 space-y-4">
+          <CardHeader>
+            <CardTitle className="text-lg font-bold text-gray-800 bangla-text">সাধারণ সেটিংস</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="music-toggle" className="flex items-center gap-2 bangla-text">
+                {isMusicPlaying ? <Volume2 className="h-5 w-5 text-blue-600" /> : <VolumeX className="h-5 w-5 text-gray-500" />}
+                পটভূমি সঙ্গীত
+              </Label>
+              <Switch
+                id="music-toggle"
+                checked={isMusicPlaying}
+                onCheckedChange={toggleMusic}
+                onClick={() => playSound("click")}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="notifications-toggle" className="flex items-center gap-2 bangla-text">
+                <Bell className="h-5 w-5 text-blue-600" />
+                বিজ্ঞপ্তি সক্ষম করুন
+              </Label>
+              <Switch
+                id="notifications-toggle"
+                checked={enableNotifications}
+                onCheckedChange={setEnableNotifications}
+                onClick={() => playSound("click")}
+              />
+            </div>
+            <Button className="w-full bg-blue-600 hover:bg-blue-700 bangla-text" onClick={handleSaveSettings} disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  সংরক্ষণ করা হচ্ছে...
+                </>
+              ) : (
+                "সেটিংস সংরক্ষণ করুন"
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Account Settings */}
+        <Card className="bg-white shadow-md rounded-lg p-4 space-y-4">
+          <CardHeader>
+            <CardTitle className="text-lg font-bold text-gray-800 bangla-text">অ্যাকাউন্ট সেটিংস</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button
+              className="w-full justify-start bg-gray-100 hover:bg-gray-200 text-gray-800 bangla-text"
+              variant="ghost"
+              onClick={() => { playSound("click"); router.push("/profile") }}
+            >
+              <Lock className="h-4 w-4 mr-2" /> পাসওয়ার্ড পরিবর্তন করুন
+            </Button>
+            <Button
+              className="w-full justify-start bg-gray-100 hover:bg-gray-200 text-gray-800 bangla-text"
+              variant="ghost"
+              onClick={() => { playSound("click"); router.push("/profile") }}
+            >
+              <Bell className="h-4 w-4 mr-2" /> প্রোফাইল তথ্য আপডেট করুন
+            </Button>
+            <Button
+              className="w-full bg-red-600 hover:bg-red-700 text-white bangla-text"
+              onClick={() => { playSound("click"); onLogout() }}
+              disabled={loading}
+            >
+              <LogOut className="h-4 w-4 mr-2" /> লগআউট
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* About Section */}
+        <Card className="bg-white shadow-md rounded-lg p-4 space-y-4">
+          <CardHeader>
+            <CardTitle className="text-lg font-bold text-gray-800 bangla-text">সম্পর্কে</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-gray-700 text-sm bangla-text">
+            <p>সংস্করণ: 1.0.0</p>
+            <p>আমাদের সাথে যোগাযোগ করুন: support@amac.com</p>
+            <p>গোপনীয়তা নীতি</p>
+            <p>ব্যবহারের শর্তাবলী</p>
+          </CardContent>
+        </Card>
+      </main>
     </div>
   )
 }

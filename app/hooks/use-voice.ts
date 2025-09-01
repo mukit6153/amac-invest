@@ -1,168 +1,91 @@
-'use client'
+"use client"
 
-import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react'
+import React, { useState, useEffect, useCallback } from "react"
 
-interface VoiceContextType {
-  speak: (text: string, options?: SpeechSynthesisUtteranceOptions) => void
-  stop: () => void
-  isSpeaking: boolean
-  isVoiceEnabled: boolean
-  toggleVoice: () => void
-  voices: SpeechSynthesisVoice[]
-  selectedVoice: SpeechSynthesisVoice | null
-  setSelectedVoice: (voice: SpeechSynthesisVoice | null) => void
-  pitch: number
-  setPitch: (pitch: number) => void
-  rate: number
-  setRate: (rate: number) => void
-  volume: number
-  setVolume: (volume: number) => void
-}
-
-interface SpeechSynthesisUtteranceOptions {
+interface VoiceNotificationOptions {
   lang?: string
   pitch?: number
   rate?: number
   volume?: number
-  voice?: SpeechSynthesisVoice
 }
 
-const VoiceContext = createContext<VoiceContextType | undefined>(undefined)
-
-interface VoiceProviderProps {
-  children: ReactNode
-}
-
-export const VoiceProvider = ({ children }: VoiceProviderProps) => {
-  const [isVoiceEnabled, setIsVoiceEnabled] = useState(true)
+export function useVoice() {
   const [isSpeaking, setIsSpeaking] = useState(false)
+  const [synth, setSynth] = useState<SpeechSynthesis | null>(null)
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
-  const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null)
-  const [pitch, setPitch] = useState(1) // 0.1 to 2
-  const [rate, setRate] = useState(1) // 0.1 to 10
-  const [volume, setVolume] = useState(1) // 0 to 1
+  const [isSpeechSupported, setIsSpeechSupported] = useState(false)
 
   useEffect(() => {
-    const savedVoiceSetting = localStorage.getItem('isVoiceEnabled')
-    if (savedVoiceSetting !== null) {
-      setIsVoiceEnabled(JSON.parse(savedVoiceSetting))
-    }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      setSynth(window.speechSynthesis)
+      setIsSpeechSupported(true)
 
-    const savedVoiceURI = localStorage.getItem('selectedVoiceURI')
-    const savedPitch = localStorage.getItem('voicePitch')
-    const savedRate = localStorage.getItem('voiceRate')
-    const savedVolume = localStorage.getItem('voiceVolume')
-
-    if (savedPitch) setPitch(parseFloat(savedPitch))
-    if (savedRate) setRate(parseFloat(savedRate))
-    if (savedVolume) setVolume(parseFloat(savedVolume))
-
-    const populateVoices = () => {
-      const availableVoices = window.speechSynthesis.getVoices()
-      setVoices(availableVoices)
-      if (savedVoiceURI) {
-        const voice = availableVoices.find(v => v.voiceURI === savedVoiceURI)
-        setSelectedVoice(voice || null)
-      } else if (availableVoices.length > 0) {
-        // Try to find a default English voice
-        const defaultVoice = availableVoices.find(v => v.lang.startsWith('en')) || availableVoices[0]
-        setSelectedVoice(defaultVoice)
-        localStorage.setItem('selectedVoiceURI', defaultVoice.voiceURI)
+      const loadVoices = () => {
+        const availableVoices = window.speechSynthesis.getVoices()
+        setVoices(availableVoices)
       }
-    }
 
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-      window.speechSynthesis.onvoiceschanged = populateVoices
+      // Voices might not be immediately available
+      if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = loadVoices
+      }
+      loadVoices() // Initial load
     }
-    populateVoices() // Call initially
   }, [])
 
-  useEffect(() => {
-    if (selectedVoice) {
-      localStorage.setItem('selectedVoiceURI', selectedVoice.voiceURI)
-    }
-  }, [selectedVoice])
+  const speak = useCallback(
+    (text: string, options?: VoiceNotificationOptions) => {
+      if (!isSpeechSupported || !synth) {
+        console.warn("Speech synthesis not supported or not initialized.")
+        return
+      }
 
-  useEffect(() => {
-    localStorage.setItem('voicePitch', pitch.toString())
-  }, [pitch])
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.lang = options?.lang || "bn-BD" // Default to Bengali
+      utterance.pitch = options?.pitch ? options.pitch / 100 : 1 // 0 to 2, default 1
+      utterance.rate = options?.rate ? options.rate / 100 : 1 // 0.1 to 10, default 1
+      utterance.volume = options?.volume ? options.volume / 100 : 1 // 0 to 1, default 1
 
-  useEffect(() => {
-    localStorage.setItem('voiceRate', rate.toString())
-  }, [rate])
+      // Try to find a Bengali voice
+      const bengaliVoice = voices.find((voice) => voice.lang === "bn-BD" || voice.lang.startsWith("bn-"))
+      if (bengaliVoice) {
+        utterance.voice = bengaliVoice
+      } else {
+        console.warn("Bengali voice not found, using default.")
+      }
 
-  useEffect(() => {
-    localStorage.setItem('voiceVolume', volume.toString())
-  }, [volume])
-
-  const toggleVoice = useCallback(() => {
-    setIsVoiceEnabled(prev => {
-      const newState = !prev
-      localStorage.setItem('isVoiceEnabled', JSON.stringify(newState))
-      if (!newState) {
-        window.speechSynthesis.cancel()
+      utterance.onstart = () => setIsSpeaking(true)
+      utterance.onend = () => setIsSpeaking(false)
+      utterance.onerror = (event) => {
+        console.error("SpeechSynthesisUtterance.onerror", event)
         setIsSpeaking(false)
       }
-      return newState
-    })
-  }, [])
 
-  const speak = useCallback((text: string, options?: SpeechSynthesisUtteranceOptions) => {
-    if (!isVoiceEnabled || !window.speechSynthesis) return
-
-    const utterance = new SpeechSynthesisUtterance(text)
-
-    utterance.voice = options?.voice || selectedVoice
-    utterance.pitch = options?.pitch || pitch
-    utterance.rate = options?.rate || rate
-    utterance.volume = options?.volume || volume
-    utterance.lang = options?.lang || (selectedVoice ? selectedVoice.lang : 'en-US')
-
-    utterance.onstart = () => setIsSpeaking(true)
-    utterance.onend = () => setIsSpeaking(false)
-    utterance.onerror = (event) => {
-      console.error('SpeechSynthesisUtterance.onerror', event)
-      setIsSpeaking(false)
-    }
-
-    window.speechSynthesis.speak(utterance)
-  }, [isVoiceEnabled, selectedVoice, pitch, rate, volume])
+      synth.speak(utterance)
+    },
+    [synth, isSpeaking, voices, isSpeechSupported],
+  )
 
   const stop = useCallback(() => {
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel()
+    if (synth && isSpeaking) {
+      synth.cancel()
       setIsSpeaking(false)
     }
-  }, [])
+  }, [synth, isSpeaking])
 
-  return (
-    <VoiceContext.Provider
-      value={{
-        speak,
-        stop,
-        isSpeaking,
-        isVoiceEnabled,
-        toggleVoice,
-        voices,
-        selectedVoice,
-        setSelectedVoice,
-        pitch,
-        setPitch,
-        rate,
-        setRate,
-        volume,
-        setVolume,
-      }}
-    >
-      {children}
-    </VoiceContext.Provider>
-  )
+  const voiceNotifications = {
+    welcome: () => speak("এএমএসি ইনভেস্টমেন্ট অ্যাপে আপনাকে স্বাগতম।", { lang: "bn-BD" }),
+    balanceUpdate: (amount: number) => speak(`আপনার ব্যালেন্স ${amount} টাকা আপডেট হয়েছে।`, { lang: "bn-BD" }),
+    rewardClaimed: (reward: number) => speak(`অভিনন্দন! আপনি ${reward} টাকা পুরস্কার পেয়েছেন।`, { lang: "bn-BD" }),
+    taskCompleted: () => speak("টাস্ক সফলভাবে সম্পন্ন হয়েছে।", { lang: "bn-BD" }),
+    error: () => speak("দুঃখিত, একটি সমস্যা হয়েছে।", { lang: "bn-BD" }),
+    // Add more specific notifications as needed
+  }
+
+  return { speak, stop, voiceNotifications, isSpeaking }
 }
 
-export const useVoice = () => {
-  const context = useContext(VoiceContext)
-  if (context === undefined) {
-    throw new Error('useVoice must be used within a VoiceProvider')
-  }
-  return context
+export const VoiceProvider = ({ children }: { children: React.ReactNode }) => {
+  // This component is primarily for context if needed, but useVoice hook manages its own state.
+  return React.createElement(React.Fragment, null, children)
 }

@@ -3,12 +3,25 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, ArrowUpRight, Wallet, Smartphone, Building, Clock, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react'
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  Wallet,
+  Smartphone,
+  Building,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Loader2,
+} from "lucide-react"
 import { useSound } from "../hooks/use-sound"
-import { dataFunctions, User, Transaction, subscribeToUserUpdates } from "../lib/database"
+import { dataFunctions, type User, type Transaction, subscribeToUserUpdates } from "../lib/database"
 
 interface WithdrawScreenProps {
   user: User
@@ -54,11 +67,11 @@ export default function WithdrawScreen({ user, onUserUpdate }: WithdrawScreenPro
     try {
       // In a real app, filter transactions by type 'withdraw' from the database
       const { data, error } = await dataFunctions.supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('type', 'withdraw')
-        .order('created_at', { ascending: false })
+        .from("transactions")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("type", "withdraw")
+        .order("created_at", { ascending: false })
 
       if (error) throw error
       setTransactions(data as Transaction[])
@@ -104,11 +117,11 @@ export default function WithdrawScreen({ user, onUserUpdate }: WithdrawScreenPro
       onUserUpdate(updatedUser)
 
       // Record the transaction
-      const { error: transactionError } = await dataFunctions.supabase.from('transactions').insert({
+      const { error: transactionError } = await dataFunctions.supabase.from("transactions").insert({
         user_id: user.id,
-        type: 'withdraw',
+        type: "withdraw",
         amount: withdrawAmount,
-        status: 'pending', // Withdrawal requests are usually pending admin approval
+        status: "pending", // Withdrawal requests are usually pending admin approval
         method: method,
         account_number: accountNumber,
         description: `Withdrawal request via ${method}`,
@@ -169,7 +182,14 @@ export default function WithdrawScreen({ user, onUserUpdate }: WithdrawScreenPro
         <div className="max-w-md mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="sm" onClick={() => { playSound("click"); router.back() }}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  playSound("click")
+                  router.back()
+                }}
+              >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div>
@@ -192,11 +212,7 @@ export default function WithdrawScreen({ user, onUserUpdate }: WithdrawScreenPro
               message.type === "success" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
             }`}
           >
-            {message.type === "success" ? (
-              <CheckCircle className="h-5 w-5" />
-            ) : (
-              <XCircle className="h-5 w-5" />
-            )}
+            {message.type === "success" ? <CheckCircle className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
             <span className="text-sm bangla-text">{message.text}</span>
           </div>
         )}
@@ -207,7 +223,10 @@ export default function WithdrawScreen({ user, onUserUpdate }: WithdrawScreenPro
             variant={activeTab === "withdraw" ? "default" : "ghost"}
             size="sm"
             className="flex-1 text-xs bangla-text"
-            onClick={() => { playSound("click"); setActiveTab("withdraw") }}
+            onClick={() => {
+              playSound("click")
+              setActiveTab("withdraw")
+            }}
           >
             উইথড্র করুন
           </Button>
@@ -215,7 +234,11 @@ export default function WithdrawScreen({ user, onUserUpdate }: WithdrawScreenPro
             variant={activeTab === "history" ? "default" : "ghost"}
             size="sm"
             className="flex-1 text-xs bangla-text"
-            onClick={() => { playSound("click"); setActiveTab("history"); loadTransactions() }}
+            onClick={() => {
+              playSound("click")
+              setActiveTab("history")
+              loadTransactions()
+            }}
           >
             ইতিহাস ({transactions.length})
           </Button>
@@ -289,7 +312,9 @@ export default function WithdrawScreen({ user, onUserUpdate }: WithdrawScreenPro
                 {/* Account Number */}
                 {method && (
                   <div>
-                    <Label className="block text-sm font-medium mb-2 bangla-text">{selectedMethodData?.name_bn} নম্বর</Label>
+                    <Label className="block text-sm font-medium mb-2 bangla-text">
+                      {selectedMethodData?.name_bn} নম্বর
+                    </Label>
                     <Input
                       type="text"
                       placeholder={`আপনার ${selectedMethodData?.name_bn} নম্বর`}
@@ -307,7 +332,9 @@ export default function WithdrawScreen({ user, onUserUpdate }: WithdrawScreenPro
                     <div className="space-y-1 text-xs">
                       <div className="flex justify-between">
                         <span className="text-gray-600 bangla-text">পরিমাণ:</span>
-                        <span className="font-bold bangla-text">৳{Number.parseFloat(amount || "0").toLocaleString()}</span>
+                        <span className="font-bold bangla-text">
+                          ৳{Number.parseFloat(amount || "0").toLocaleString()}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600 bangla-text">পদ্ধতি:</span>
@@ -373,7 +400,15 @@ export default function WithdrawScreen({ user, onUserUpdate }: WithdrawScreenPro
                 <CardContent className="p-6 text-center">
                   <ArrowUpRight className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                   <p className="text-gray-600 bangla-text">কোন উইথড্র ইতিহাস নেই</p>
-                  <Button variant="outline" size="sm" className="mt-3 bangla-text" onClick={() => { playSound("click"); setActiveTab("withdraw") }}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 bangla-text bg-transparent"
+                    onClick={() => {
+                      playSound("click")
+                      setActiveTab("withdraw")
+                    }}
+                  >
                     উইথড্র করুন
                   </Button>
                 </CardContent>

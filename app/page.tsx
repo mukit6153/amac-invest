@@ -1,90 +1,64 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import SplashScreen from "./components/splash-screen"
-import AuthScreen from "./components/auth-screen"
-import CompleteHomeScreen from "./components/complete-home-screen"
-import { type User, authFunctions, subscribeToUserUpdates } from "./lib/database"
-import { useSound } from "./hooks/use-sound"
-import { useBackgroundMusic } from "./hooks/use-background-music"
-import React from "react"
+import { useState } from "react"
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 
 export default function HomePage() {
-  const [isLoading, setIsLoading] = useState(true)
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<any>(null)
 
-  const soundHook = useSound()
-  const musicHook = useBackgroundMusic()
-
-  const playSound = soundHook.playSound
-  const isPlaying = musicHook.isPlaying
-  const toggleMusic = musicHook.toggleMusic
-  const playMusic = musicHook.playMusic
-  const stopMusic = musicHook.stopMusic
-
-  useEffect(() => {
-    const checkUser = async () => {
-      const storedUserId = localStorage.getItem("currentUserId")
-      if (storedUserId) {
-        try {
-          const fetchedUser = await authFunctions.getCurrentUser(storedUserId)
-          if (fetchedUser) {
-            setUser(fetchedUser)
-          } else {
-            localStorage.removeItem("currentUserId")
-          }
-        } catch (error) {
-          console.error("Failed to fetch user:", error)
-          localStorage.removeItem("currentUserId")
-        }
-      }
-      setIsLoading(false)
-    }
-
-    checkUser()
-  }, [])
-
-  useEffect(() => {
-    if (user?.id) {
-      const channel = subscribeToUserUpdates(user.id, (payload) => {
-        if (payload.new) {
-          setUser(payload.new as User)
-        }
-      })
-      return () => {
-        channel.unsubscribe()
-      }
-    }
-  }, [user?.id])
-
-  const handleLoginSuccess = (loggedInUser: User) => {
-    setUser(loggedInUser)
-    localStorage.setItem("currentUserId", loggedInUser.id)
-    playSound("success")
-    playMusic("peaceful")
+  const handleLogin = () => {
+    setUser({ name: "Demo User", balance: 5000 })
   }
 
-  const handleLogout = async () => {
-    await authFunctions.signOut()
+  const handleLogout = () => {
     setUser(null)
-    localStorage.removeItem("currentUserId")
-    playSound("click")
-    stopMusic()
-  }
-
-  if (isLoading) {
-    return React.createElement(SplashScreen)
   }
 
   if (!user) {
-    return React.createElement(AuthScreen, { onLoginSuccess: handleLoginSuccess })
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <h1 className="text-2xl font-bold mb-4">AMAC Investment</h1>
+            <p className="text-gray-600 mb-6">Welcome to your investment platform</p>
+            <Button onClick={handleLogin} className="w-full">
+              Demo Login
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
-  return React.createElement(CompleteHomeScreen, {
-    user: user,
-    onUserUpdate: setUser,
-    onLogout: handleLogout,
-    isMusicPlaying: isPlaying,
-    toggleMusic: toggleMusic,
-  })
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-white shadow-sm p-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold">AMAC Investment</h1>
+          <Button onClick={handleLogout} variant="outline" size="sm">
+            Logout
+          </Button>
+        </div>
+      </div>
+
+      <div className="p-4 space-y-4">
+        <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm opacity-90">Total Balance</p>
+                <p className="text-2xl font-bold">৳{user.balance.toLocaleString()}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="text-center py-8">
+          <h2 className="text-lg font-semibold mb-2">Welcome, {user.name}!</h2>
+          <p className="text-gray-600">Your investment journey starts here.</p>
+        </div>
+      </div>
+    </div>
+  )
 }
